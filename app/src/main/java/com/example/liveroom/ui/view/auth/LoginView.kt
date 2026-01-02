@@ -1,51 +1,56 @@
 package com.example.liveroom.ui.view.auth
 
-import android.content.Context
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.NavController
-import com.example.liveroom.data.local.DataStoreManager
+import androidx.navigation.compose.rememberNavController
+import com.example.liveroom.data.model.AuthFieldConfig
 import com.example.liveroom.ui.navigation.Screen
-import kotlinx.coroutines.launch
-import kotlin.coroutines.CoroutineContext
 
 @Composable
 fun LoginView(navController: NavController) {
-    val scope = rememberCoroutineScope()
-    val context = LocalContext.current
-    Scaffold { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        )
-        {
-            Text(
-                "Login"
+    val loginState = remember { mutableStateOf("") }
+    val passwordState = remember { mutableStateOf("") }
+    val rememberMeState = remember { mutableStateOf(false) }
+
+
+    AuthFormView(
+        title = "Login",
+        fields = listOf(
+            AuthFieldConfig(
+                label = "Login",
+                value = loginState.value,
+                onValueChange = { loginState.value = it },
+                fieldType = "login"
+            ),
+            AuthFieldConfig(
+                label = "Password",
+                value = passwordState.value,
+                onValueChange = { passwordState.value = it },
+                fieldType = "password"
             )
-            Button(
-                onClick = {
-//                    scope.launch {
-//                        DataStoreManager.saveToken(context, "wadwadasdsabasd12384121512")
-//                        DataStoreManager.logAllPreferences(context)
-//                    }
-                    navController.navigate(route = Screen.RegistrationScreen.route)
-                }
-            )
-            {
-            }
+        ),
+        submitButtonText = "Login",
+        onSubmit = {
+
+        },
+        showRememberMe = true,
+        rememberMeValue = rememberMeState.value,
+        onRememberMeChange = { newValue ->
+            rememberMeState.value = newValue
+        },
+        navigationText = "Don't have an account? Sign up",
+        onNavigationTextClick = {
+            navController.navigate(Screen.RegistrationScreen.route)
         }
-    }
+    )
+}
+
+@Preview
+@Composable
+fun PreviewLoginView() {
+    val navController = rememberNavController()
+    LoginView(navController)
 }
