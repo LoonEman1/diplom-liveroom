@@ -3,9 +3,11 @@ package com.example.liveroom.ui.view.auth
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
+import com.example.liveroom.R
 import com.example.liveroom.data.model.AuthFieldConfig
 import com.example.liveroom.ui.navigation.Screen
 
@@ -18,28 +20,29 @@ fun RegistrationView(navController: NavController) {
 
 
     AuthFormView(
-        title = "Registration",
+        title = stringResource(R.string.registration_title),
+        subtitle = stringResource(R.string.registration_subtitle),
         fields = listOf(
             AuthFieldConfig(
-                label = "Login",
+                label = stringResource(R.string.nickname),
                 value = loginState.value,
                 onValueChange = { loginState.value = it },
                 fieldType = "login"
             ),
             AuthFieldConfig(
-                label = "Email",
+                label = stringResource(R.string.email),
                 value = emailState.value,
                 onValueChange = { emailState.value = it },
                 fieldType = "email"
             ),
             AuthFieldConfig(
-                label = "Password",
+                label = stringResource(R.string.password),
                 value = passwordState.value,
                 onValueChange = { passwordState.value = it },
                 fieldType = "password"
             )
         ),
-        submitButtonText = "Register",
+        submitButtonText = stringResource(R.string.sign_up),
         onSubmit = {
         },
         showRememberMe = true,
@@ -47,10 +50,11 @@ fun RegistrationView(navController: NavController) {
         onRememberMeChange = { newValue ->
             rememberMeState.value = newValue
         },
-        navigationText = "Already have an account? Sign in",
+        navigationText = stringResource(R.string.reg_nav_text),
         onNavigationTextClick = {
             navController.navigate(Screen.LoginScreen.route)
-        }
+        },
+        signText = stringResource(R.string.sign_in)
     )
 }
 

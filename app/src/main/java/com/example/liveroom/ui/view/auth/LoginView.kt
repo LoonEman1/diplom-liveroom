@@ -3,9 +3,11 @@ package com.example.liveroom.ui.view.auth
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
+import com.example.liveroom.R
 import com.example.liveroom.data.model.AuthFieldConfig
 import com.example.liveroom.ui.navigation.Screen
 
@@ -17,34 +19,35 @@ fun LoginView(navController: NavController) {
 
 
     AuthFormView(
-        title = "Login",
+        title = stringResource(R.string.login_title),
+        subtitle = stringResource(R.string.login_subtitle),
         fields = listOf(
             AuthFieldConfig(
-                label = "Login",
+                label = stringResource(R.string.nickname),
                 value = loginState.value,
                 onValueChange = { loginState.value = it },
                 fieldType = "login"
             ),
             AuthFieldConfig(
-                label = "Password",
+                label = stringResource(R.string.password),
                 value = passwordState.value,
                 onValueChange = { passwordState.value = it },
                 fieldType = "password"
             )
         ),
-        submitButtonText = "Login",
+        submitButtonText = stringResource(R.string.sign_in),
         onSubmit = {
-
         },
         showRememberMe = true,
         rememberMeValue = rememberMeState.value,
         onRememberMeChange = { newValue ->
             rememberMeState.value = newValue
         },
-        navigationText = "Don't have an account? Sign up",
+        navigationText = stringResource(R.string.login_nav_text),
         onNavigationTextClick = {
             navController.navigate(Screen.RegistrationScreen.route)
-        }
+        },
+        signText = stringResource(R.string.sign_up)
     )
 }
 
