@@ -11,4 +11,6 @@
     <string name="registration_title">Create an account</string>
     <string name="registration_subtitle">Log in to continue your training</string>
     <string name="reg_nav_text">Already have an account?</string>
+    <string name="home">Home</string>
+    <string name="profile">Profile</string>
 </resources>

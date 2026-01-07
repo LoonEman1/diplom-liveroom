@@ -37,6 +37,7 @@ fun LoginView(navController: NavController) {
         ),
         submitButtonText = stringResource(R.string.sign_in),
         onSubmit = {
+            navController.navigate(Screen.MainScreen.route)
         },
         showRememberMe = true,
         rememberMeValue = rememberMeState.value,

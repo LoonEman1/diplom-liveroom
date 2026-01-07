@@ -6,6 +6,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.example.liveroom.ui.view.auth.LoginView
 import com.example.liveroom.ui.view.auth.RegistrationView
+import com.example.liveroom.ui.view.main.MainView
 
 @Composable
 fun NavigationGraph(
@@ -28,6 +29,12 @@ fun NavigationGraph(
         )
         {
             RegistrationView(navController)
+        }
+
+        composable(
+            route = Screen.MainScreen.route
+        ) {
+            MainView(navController)
         }
     }
 }

@@ -157,7 +157,7 @@ fun AuthFormView(
                 )
                 Text(
                     text = subtitle,
-                    color = MaterialTheme.colorScheme.secondary,
+                    color = Color.Gray,
                     modifier = Modifier.padding(bottom = 10.dp)
                 )
                 fields.forEach { fieldConfig ->

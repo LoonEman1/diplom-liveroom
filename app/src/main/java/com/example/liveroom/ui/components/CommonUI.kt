@@ -23,6 +23,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.liveroom.ui.theme.ButtonColor
 import com.example.liveroom.ui.theme.PrimaryPurple
 
 @Composable
@@ -86,10 +87,10 @@ fun PrimaryButton(
         modifier = modifier
             .padding(top = 20.dp)
             .fillMaxWidth(0.8f),
-        colors = ButtonDefaults.buttonColors(containerColor = PrimaryPurple),
+        colors = ButtonDefaults.buttonColors(containerColor = ButtonColor),
         shape = RoundedCornerShape(25.dp)
     ) {
-        Text(text, style = MaterialTheme.typography.titleMedium)
+        Text(text, style = MaterialTheme.typography.titleMedium, color = Color.White)
     }
 }
 

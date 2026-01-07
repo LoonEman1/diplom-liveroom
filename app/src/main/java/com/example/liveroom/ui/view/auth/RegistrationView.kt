@@ -44,6 +44,7 @@ fun RegistrationView(navController: NavController) {
         ),
         submitButtonText = stringResource(R.string.sign_up),
         onSubmit = {
+            navController.navigate(Screen.MainScreen.route)
         },
         showRememberMe = true,
         rememberMeValue = rememberMeState.value,
