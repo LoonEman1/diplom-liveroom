@@ -24,7 +24,6 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.liveroom.ui.theme.ButtonColor
-import com.example.liveroom.ui.theme.PrimaryPurple
 
 @Composable
 fun CustomTextField(

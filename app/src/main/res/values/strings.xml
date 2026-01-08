@@ -13,4 +13,6 @@
     <string name="reg_nav_text">Already have an account?</string>
     <string name="home">Home</string>
     <string name="profile">Profile</string>
+    <string name="home_label">Select a server</string>
+    <string name="home_sublabel">The left side is empty for now. Create your first training server or join an existing one to start your lessons.</string>
 </resources>

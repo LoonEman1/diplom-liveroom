@@ -13,18 +13,17 @@ val Pink40 = Color(0xFF7D5260)
 
 // Dark Theme Colors
 val DarkBackground = Color(0xFF191431)
-val SurfaceColor = Color(0xFF1E1F22)
-val PrimaryPurple = Color(0xFF4F59C0)
+val SurfaceColor = Color(0xFF07052A)
+val DarkPrimary = Color(0xFF0A062A)
 val TextWhite = Color(0xFFFFFFFF)
 val TextGray = Color(0xFFB5BAC1)
 val ErrorRed = Color(0xFFDA373C)
-val DarkBackgroundSecondary = Color(0xFF252222)
+val DarkBackgroundSecondary = Color(0xFF0F0A2F)
 
 val ButtonColor = Color(0xFF3713EC)
 
 // Additional theme colors
 val OutlineColor = Color(0xFF383A40)
-val OutlineFocusedColor = PrimaryPurple
 
 // Light theme colors
 val LightBackground = Color(0xFFFAFAFA)
@@ -33,6 +32,7 @@ val LightTextPrimary = Color(0xFF101018)
 val LightTextSecondary = Color(0xFFDADADA)
 val LightOutlineColor = Color(0xFFE0E0E0)
 val linkTextColor = Color(0xFF5865F2)
+val LightPrimary = Color(0xFFB4B4B4)
 
 
 val BarColor = Color(0xFF171515)
