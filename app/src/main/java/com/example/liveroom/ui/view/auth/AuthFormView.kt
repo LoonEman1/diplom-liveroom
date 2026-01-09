@@ -30,6 +30,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.AlignmentLine
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -116,6 +117,7 @@ fun AuthFormView(
     onNavigationTextClick : () -> Unit,
     navigationText : String,
     signText : String,
+    icon : (@Composable () -> Unit)? = null
 ) {
     Scaffold { innerPadding ->
         Box(
@@ -181,13 +183,15 @@ fun AuthFormView(
                                 indication = null
                             ) {
                                 onRememberMeChange(!rememberMeValue)
-                            },
+                            }
+                            .align(Alignment.CenterHorizontally),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         if (showRememberMe) {
                             Checkbox(
                                 checked = rememberMeValue,
-                                onCheckedChange = onRememberMeChange
+                                onCheckedChange = onRememberMeChange,
+                                modifier = Modifier
                             )
                             Text("Remember me")
                         }
@@ -220,6 +224,7 @@ fun AuthFormView(
                 PrimaryButton(
                     onClick = onSubmit,
                     text = submitButtonText,
+                    icon = icon
                 )
             }
         }

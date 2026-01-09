@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
@@ -19,7 +20,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.liveroom.ui.view.main.components.BottomNavigationBar
 import com.example.liveroom.ui.view.main.components.HomeComponent
@@ -30,12 +33,15 @@ import com.example.liveroom.ui.view.main.components.TopDynamicHeader
 fun MainView(navController: NavController) {
     var selectedTab by remember { mutableStateOf("home") }
 
-    Row(Modifier.fillMaxSize()) {
+    Row(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(color = MaterialTheme.colorScheme.primary)
+    ) {
         Box(
             modifier = Modifier
                 .weight(0.15f)
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.primary)
                 .padding(
                     top = WindowInsets.statusBars
                         .asPaddingValues()
@@ -50,13 +56,19 @@ fun MainView(navController: NavController) {
                 onTabSelected = { selectedTab = it },
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(color = MaterialTheme.colorScheme.primary)
             )
         }
 
         Scaffold(
             modifier = Modifier
                 .weight(0.85f)
+                .padding(top = 18.dp)
+                .clip(
+                    RoundedCornerShape(
+                        topStart = 32.dp,
+                        topEnd = 32.dp
+                    )
+                )
                 .background(MaterialTheme.colorScheme.secondary),
             bottomBar = {
                 BottomNavigationBar(

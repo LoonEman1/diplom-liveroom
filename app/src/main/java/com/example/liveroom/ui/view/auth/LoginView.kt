@@ -1,10 +1,20 @@
 package com.example.liveroom.ui.view.auth
 
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Send
+import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.example.liveroom.R
@@ -48,7 +58,13 @@ fun LoginView(navController: NavController) {
         onNavigationTextClick = {
             navController.navigate(Screen.RegistrationScreen.route)
         },
-        signText = stringResource(R.string.sign_up)
+        signText = stringResource(R.string.sign_up),
+        icon = {
+            Icon(
+                imageVector = Icons.Default.Send,
+                contentDescription = null,
+            )
+        }
     )
 }
 

@@ -1,10 +1,16 @@
 package com.example.liveroom.ui.view.auth
 
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Send
+import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.example.liveroom.R
@@ -55,7 +61,13 @@ fun RegistrationView(navController: NavController) {
         onNavigationTextClick = {
             navController.navigate(Screen.LoginScreen.route)
         },
-        signText = stringResource(R.string.sign_in)
+        signText = stringResource(R.string.sign_in),
+        icon = {
+            Icon(
+                imageVector = Icons.Default.Send,
+                contentDescription = null,
+            )
+        }
     )
 }
 
