@@ -9,24 +9,48 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.ViewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.example.liveroom.R
 import com.example.liveroom.data.model.AuthFieldConfig
 import com.example.liveroom.ui.navigation.Screen
+import com.example.liveroom.ui.viewmodel.AuthState
+import com.example.liveroom.ui.viewmodel.AuthViewModel
 
 @Composable
 fun LoginView(navController: NavController) {
-    val loginState = remember { mutableStateOf("") }
+
+    val viewModel: AuthViewModel = hiltViewModel()
+
+    val usernameState = remember { mutableStateOf("") }
     val passwordState = remember { mutableStateOf("") }
     val rememberMeState = remember { mutableStateOf(false) }
 
+    val loginState by viewModel.loginState.collectAsState()
+
+    LaunchedEffect(loginState) {
+        when (loginState) {
+            is AuthState.Success -> {
+                navController.navigate(Screen.MainScreen.route) {
+                    popUpTo(Screen.LoginScreen.route) { inclusive = true }
+                }
+            }
+            is AuthState.Error -> {
+            }
+            else -> {}
+        }
+    }
 
     AuthFormView(
         title = stringResource(R.string.login_title),
@@ -34,9 +58,9 @@ fun LoginView(navController: NavController) {
         fields = listOf(
             AuthFieldConfig(
                 label = stringResource(R.string.nickname),
-                value = loginState.value,
-                onValueChange = { loginState.value = it },
-                fieldType = "login"
+                value = usernameState.value,
+                onValueChange = { usernameState.value = it },
+                fieldType = "email"
             ),
             AuthFieldConfig(
                 label = stringResource(R.string.password),
@@ -47,7 +71,7 @@ fun LoginView(navController: NavController) {
         ),
         submitButtonText = stringResource(R.string.sign_in),
         onSubmit = {
-            navController.navigate(Screen.MainScreen.route)
+            viewModel.login(usernameState.value, passwordState.value)
         },
         showRememberMe = true,
         rememberMeValue = rememberMeState.value,

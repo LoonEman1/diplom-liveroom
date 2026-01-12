@@ -16,7 +16,9 @@ import androidx.navigation.compose.rememberNavController
 import com.example.liveroom.ui.navigation.NavigationGraph
 import com.example.liveroom.ui.navigation.Screen
 import com.example.liveroom.ui.theme.LiveRoomTheme
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
