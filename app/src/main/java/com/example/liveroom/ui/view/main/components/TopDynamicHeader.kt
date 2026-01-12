@@ -13,18 +13,23 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.example.liveroom.R
+import com.example.liveroom.ui.viewmodel.UserViewModel
 
 @Composable
-fun TopDynamicHeader(selectedTab : String) {
+fun TopDynamicHeader(selectedTab : String, userViewModel: UserViewModel) {
 
     val statusBarPadding = WindowInsets.statusBars.asPaddingValues()
+    val username by userViewModel.username.collectAsState()
 
     Column(
         modifier = Modifier
@@ -51,6 +56,11 @@ fun TopDynamicHeader(selectedTab : String) {
                 fontWeight = FontWeight.Bold,
                 style = MaterialTheme.typography.headlineSmall
             )
+            Text(
+                text = username,
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.headlineSmall
+            )
         }
         HorizontalDivider(
             color = MaterialTheme.colorScheme.secondary,
@@ -63,6 +73,6 @@ fun TopDynamicHeader(selectedTab : String) {
 @Composable
 fun PreviewTopDynamicHeader() {
     TopDynamicHeader(
-        "home"
+        "home", userViewModel = hiltViewModel<UserViewModel>()
     )
 }

@@ -66,7 +66,7 @@ fun AuthTextField(
 
         leadingIcon = {
             when (fieldType) {
-                "login" -> Icon(Icons.Default.Person, contentDescription = "Login", tint = androidx.compose.ui.graphics.Color.Gray)
+                "username" -> Icon(Icons.Default.Person, contentDescription = "Login", tint = androidx.compose.ui.graphics.Color.Gray)
                 "email" -> Icon(Icons.Default.Email, contentDescription = "Email", tint = androidx.compose.ui.graphics.Color.Gray)
                 "password" -> Icon(Icons.Default.Lock, contentDescription = "Password", tint = androidx.compose.ui.graphics.Color.Gray)
             }

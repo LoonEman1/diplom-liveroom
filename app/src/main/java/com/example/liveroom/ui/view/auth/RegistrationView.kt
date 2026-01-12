@@ -1,29 +1,59 @@
 package com.example.liveroom.ui.view.auth
 
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.ui.Modifier
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.example.liveroom.R
 import com.example.liveroom.data.model.AuthFieldConfig
 import com.example.liveroom.ui.navigation.Screen
+import com.example.liveroom.ui.viewmodel.AuthState
+import com.example.liveroom.ui.viewmodel.AuthViewModel
+import com.example.liveroom.ui.viewmodel.UserViewModel
 
 @Composable
-fun RegistrationView(navController: NavController) {
-    val loginState = remember { mutableStateOf("") }
-    val passwordState = remember { mutableStateOf("") }
-    val rememberMeState = remember { mutableStateOf(false) }
-    val emailState = remember { mutableStateOf("") }
+fun RegistrationView(navController: NavController, userViewModel: UserViewModel) {
 
+    val viewModel: AuthViewModel = hiltViewModel<AuthViewModel>()
+
+    val usernameState by viewModel.usernameState.collectAsState()
+    val passwordState by viewModel.passwordState.collectAsState()
+    val confirmPasswordState by viewModel.confirmPasswordState.collectAsState()
+    val rememberMeState by viewModel.rememberMe.collectAsState()
+    val emailState by viewModel.emailState.collectAsState()
+
+    val registerState by viewModel.registerState.collectAsState()
+
+    LaunchedEffect(registerState) {
+        when (registerState) {
+            is AuthState.Success -> {
+
+                val response = (registerState as AuthState.Success).response
+
+                userViewModel.setUserData(
+                    userId = response.userId,
+                    username = response.username,
+                    accessToken = response.accessToken,
+                    refreshToken = response.refreshToken
+                )
+
+                navController.navigate(Screen.MainScreen.route) {
+                    popUpTo(Screen.LoginScreen.route) { inclusive = true }
+                }
+            }
+            is AuthState.Error -> {
+            }
+            else -> {}
+        }
+    }
 
     AuthFormView(
         title = stringResource(R.string.registration_title),
@@ -31,31 +61,42 @@ fun RegistrationView(navController: NavController) {
         fields = listOf(
             AuthFieldConfig(
                 label = stringResource(R.string.nickname),
-                value = loginState.value,
-                onValueChange = { loginState.value = it },
-                fieldType = "login"
+                value = usernameState,
+                onValueChange = { viewModel.setUsernameValue(it) },
+                fieldType = "username"
             ),
             AuthFieldConfig(
                 label = stringResource(R.string.email),
-                value = emailState.value,
-                onValueChange = { emailState.value = it },
+                value = emailState,
+                onValueChange = { viewModel.setEmailValue(it) },
                 fieldType = "email"
             ),
             AuthFieldConfig(
                 label = stringResource(R.string.password),
-                value = passwordState.value,
-                onValueChange = { passwordState.value = it },
+                value = passwordState,
+                onValueChange = { viewModel.setPasswordValue(it) },
+                fieldType = "password"
+            ),
+            AuthFieldConfig(
+                label = stringResource(R.string.confirm_password),
+                value = confirmPasswordState,
+                onValueChange = { viewModel.setConfirmPasswordValue(it) },
                 fieldType = "password"
             )
         ),
         submitButtonText = stringResource(R.string.sign_up),
         onSubmit = {
-            navController.navigate(Screen.MainScreen.route)
+            viewModel.register(
+                usernameState,
+                emailState,
+                passwordState,
+                confirmPasswordState
+            )
         },
         showRememberMe = true,
-        rememberMeValue = rememberMeState.value,
+        rememberMeValue = rememberMeState,
         onRememberMeChange = { newValue ->
-            rememberMeState.value = newValue
+            viewModel.setRememberMeValue(newValue)
         },
         navigationText = stringResource(R.string.reg_nav_text),
         onNavigationTextClick = {
@@ -75,5 +116,6 @@ fun RegistrationView(navController: NavController) {
 @Composable
 fun PreviewRegistrationView() {
     val navController = rememberNavController()
-    RegistrationView(navController)
+    val userViewModel = hiltViewModel<UserViewModel>()
+    RegistrationView(navController, userViewModel)
 }

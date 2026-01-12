@@ -19,6 +19,41 @@ class AuthViewModel @Inject constructor(private val repository: AuthRepository) 
     private val _loginState = MutableStateFlow<AuthState>(AuthState.Idle)
     val loginState = _loginState.asStateFlow()
 
+    private val _usernameState = MutableStateFlow("")
+    val usernameState = _usernameState.asStateFlow()
+
+    private val _emailState = MutableStateFlow("")
+    val emailState = _emailState.asStateFlow()
+
+    private val _passwordState = MutableStateFlow("")
+    val passwordState = _passwordState.asStateFlow()
+
+    private val _confirmPasswordState = MutableStateFlow("")
+    val confirmPasswordState = _confirmPasswordState.asStateFlow()
+
+    private val _rememberMe = MutableStateFlow(false)
+    val rememberMe = _rememberMe.asStateFlow()
+
+    fun setUsernameValue(usernameValue: String) {
+        _usernameState.value = usernameValue
+    }
+
+    fun setEmailValue(emailValue : String) {
+        _emailState.value = emailValue
+    }
+
+    fun setPasswordValue(passwordValue : String) {
+        _passwordState.value = passwordValue
+    }
+
+    fun setConfirmPasswordValue(confirmPasswordValue : String) {
+        _confirmPasswordState.value = confirmPasswordValue
+    }
+
+    fun setRememberMeValue(state : Boolean) {
+        _rememberMe.value = state
+    }
+
     fun register(
         username : String,
         email : String,
