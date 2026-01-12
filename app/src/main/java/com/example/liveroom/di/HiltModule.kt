@@ -1,9 +1,13 @@
 package com.example.liveroom.di
 
+import android.content.Context
 import com.example.liveroom.data.remote.api.AuthService
+import com.example.liveroom.data.remote.api.ServerApiService
+import com.example.liveroom.data.repository.ServerRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -45,5 +49,20 @@ class HiltModule {
     @Provides
     fun provideAuthService(retrofit: Retrofit): AuthService {
         return retrofit.create(AuthService::class.java)
+    }
+
+    @Singleton
+    @Provides
+    fun provideServerApiService(retrofit: Retrofit): ServerApiService {
+        return retrofit.create(ServerApiService::class.java)
+    }
+
+    @Singleton
+    @Provides
+    fun provideServerRepository(
+        @ApplicationContext context: Context,
+        apiService: ServerApiService
+    ): ServerRepository {
+        return ServerRepository(apiService, context)
     }
 }

@@ -94,14 +94,15 @@ fun PrimaryButton(
     text : String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    icon : (@Composable () -> Unit)? = null
+    icon : (@Composable () -> Unit)? = null,
+    containerColor: Color = ButtonColor
 ) {
     Button(
         onClick = onClick,
         modifier = modifier
             .padding(top = 20.dp)
             .fillMaxWidth(0.7f),
-        colors = ButtonDefaults.buttonColors(containerColor = ButtonColor),
+        colors = ButtonDefaults.buttonColors(containerColor = containerColor),
         shape = RoundedCornerShape(14.dp),
     ) {
         if(icon != null) {

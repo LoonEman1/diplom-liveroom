@@ -13,23 +13,33 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
+import androidx.navigation.compose.rememberNavController
 import com.example.liveroom.ui.view.main.components.BottomNavigationBar
 import com.example.liveroom.ui.view.main.components.HomeComponent
 import com.example.liveroom.ui.view.main.components.LeftNavigation
 import com.example.liveroom.ui.view.main.components.TopDynamicHeader
+import com.example.liveroom.ui.viewmodel.ServerViewModel
 import com.example.liveroom.ui.viewmodel.UserViewModel
 
 @Composable
-fun MainView(navController: NavController, userViewModel: UserViewModel) {
+fun MainView(navController: NavController, userViewModel: UserViewModel, serverViewModel: ServerViewModel) {
     var selectedTab by remember { mutableStateOf("home") }
+
+    val userId = userViewModel.userId.collectAsState()
+    val accessToken = userViewModel.accessToken.collectAsState()
+
+    serverViewModel.getServer(userId.value, accessToken.value)
 
     Row(
         modifier = Modifier
@@ -53,7 +63,9 @@ fun MainView(navController: NavController, userViewModel: UserViewModel) {
                 selectedTab = selectedTab,
                 onTabSelected = { selectedTab = it },
                 modifier = Modifier
-                    .fillMaxSize()
+                    .fillMaxSize(),
+                serverViewModel = serverViewModel,
+                userViewModel = userViewModel
             )
         }
 
@@ -92,6 +104,15 @@ fun MainView(navController: NavController, userViewModel: UserViewModel) {
             }
         }
     }
+}
+
+@Preview
+@Composable
+fun previewMain() {
+    val navController = rememberNavController()
+    val userViewModel = hiltViewModel<UserViewModel>()
+    val serverViewModel = hiltViewModel<ServerViewModel>()
+    MainView(navController, userViewModel, serverViewModel)
 }
 
 

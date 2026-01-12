@@ -79,7 +79,7 @@ fun AuthTextField(
                     Icon(
                         painter = painterResource(id = iconId),
                         contentDescription = if (showPassword) "Hide" else "Show",
-                        tint = androidx.compose.ui.graphics.Color.Gray
+                        tint = Color.Gray
                     )
                 }
             }

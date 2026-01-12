@@ -16,4 +16,12 @@
     <string name="home_label">Select a server</string>
     <string name="home_sublabel">The left side is empty for now. Create your first training server or join an existing one to start your lessons.</string>
     <string name="confirm_password">Confirm password</string>
+    <string name="create_new_server">Create a new server</string>
+    <string name="server_name">Server name</string>
+    <string name="add_image">Add image</string>
+    <string name="cancel">Cancel</string>
+    <string name="create">Create</string>
+    <string name="cannot_be_empty">The server name cannot be empty</string>
+    <string name="server_created">The server has been created! Server name:</string>
+    <string name="cannot_get_user_data">Error: Failed to retrieve user data</string>
 </resources>

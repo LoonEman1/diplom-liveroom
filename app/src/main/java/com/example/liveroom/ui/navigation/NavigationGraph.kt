@@ -8,6 +8,7 @@ import androidx.navigation.compose.composable
 import com.example.liveroom.ui.view.auth.LoginView
 import com.example.liveroom.ui.view.auth.RegistrationView
 import com.example.liveroom.ui.view.main.MainView
+import com.example.liveroom.ui.viewmodel.ServerViewModel
 import com.example.liveroom.ui.viewmodel.UserViewModel
 
 @Composable
@@ -17,6 +18,8 @@ fun NavigationGraph(
 ) {
 
     val userViewModel: UserViewModel = hiltViewModel<UserViewModel>()
+    val serverViewModel : ServerViewModel = hiltViewModel<ServerViewModel>()
+
     NavHost(
         navController = navController,
         startDestination = startDestination
@@ -38,7 +41,7 @@ fun NavigationGraph(
         composable(
             route = Screen.MainScreen.route
         ) {
-            MainView(navController, userViewModel)
+            MainView(navController, userViewModel, serverViewModel)
         }
     }
 }
