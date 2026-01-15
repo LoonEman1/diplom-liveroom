@@ -17,13 +17,11 @@ interface ServerApiService {
     @GET("api/users/{userId}/servers")
     suspend fun getServers(
         @Path("userId") userId: Int,
-        @Header("Authorization") token: String
     ): List<Server>
 
     @POST("api/servers")
     suspend fun createServer(
         @Body request: CreateServerRequest,
-        @Header("Authorization") token: String
     ) : Server
 
     @Multipart
@@ -31,7 +29,6 @@ interface ServerApiService {
     suspend fun uploadServerAvatar(
         @Path("serverId") serverId : Int,
         @Part file: MultipartBody.Part,
-        @Header("Authorization") token: String
     ) : Unit
 
     @GET("api/servers/{serverId}/avatar")

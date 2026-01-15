@@ -1,12 +1,15 @@
 package com.example.liveroom.ui.view.auth
 
+import android.widget.Toast
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.currentCompositionLocalContext
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -32,6 +35,9 @@ fun LoginView(navController: NavController, userViewModel: UserViewModel) {
 
     val loginState by viewModel.loginState.collectAsState()
 
+    val context = LocalContext.current
+    val errorMessage = stringResource(R.string.auth_error)
+
     LaunchedEffect(loginState) {
         when (loginState) {
             is AuthState.Success -> {
@@ -49,6 +55,11 @@ fun LoginView(navController: NavController, userViewModel: UserViewModel) {
                 }
             }
             is AuthState.Error -> {
+                Toast.makeText(
+                    context,
+                    errorMessage,
+                    Toast.LENGTH_SHORT
+                ).show()
             }
             else -> {}
         }

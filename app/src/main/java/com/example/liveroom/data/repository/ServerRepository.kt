@@ -16,19 +16,19 @@ class ServerRepository @Inject constructor(
     private val context: Context
 ) {
 
-    suspend fun getServers(userId: Int, token: String): Result<List<Server>> {
+    suspend fun getServers(userId: Int): Result<List<Server>> {
         return try {
-            val serverList = apiService.getServers(userId, "Bearer $token")
+            val serverList = apiService.getServers(userId)
             Result.success(serverList)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    suspend fun createServer(name: String, token: String): Result<Server> {
+    suspend fun createServer(name: String): Result<Server> {
         return try {
             val request = CreateServerRequest(name = name)
-            val newServer = apiService.createServer(request, "Bearer $token")
+            val newServer = apiService.createServer(request)
             Result.success(newServer)
         } catch (e: Exception) {
             Result.failure(e)
@@ -36,7 +36,7 @@ class ServerRepository @Inject constructor(
     }
 
 
-    suspend fun uploadServerAvatar(serverId: Int, serverName : String, imageUri: Uri, token: String): Result<Server> {
+    suspend fun uploadServerAvatar(serverId: Int, serverName : String, imageUri: Uri): Result<Server> {
         return try {
             val inputStream = context.contentResolver.openInputStream(imageUri)
             val tempFile = File(context.cacheDir, "server_avatar_${System.currentTimeMillis()}.jpg")
@@ -45,7 +45,7 @@ class ServerRepository @Inject constructor(
             val requestBody = tempFile.asRequestBody("image/jpeg".toMediaType())
             val multipartBody = MultipartBody.Part.createFormData("file", tempFile.name, requestBody)
 
-            apiService.uploadServerAvatar(serverId, multipartBody, "Bearer $token")
+            apiService.uploadServerAvatar(serverId, multipartBody)
 
             val updatedServer = Server(
                 id = serverId,

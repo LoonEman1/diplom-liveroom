@@ -39,7 +39,7 @@ fun MainView(navController: NavController, userViewModel: UserViewModel, serverV
     val userId = userViewModel.userId.collectAsState()
     val accessToken = userViewModel.accessToken.collectAsState()
 
-    serverViewModel.getServer(userId.value, accessToken.value)
+    serverViewModel.getServers(userId.value)
 
     Row(
         modifier = Modifier

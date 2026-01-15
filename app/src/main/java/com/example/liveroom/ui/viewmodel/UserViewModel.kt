@@ -1,14 +1,18 @@
 package com.example.liveroom.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.liveroom.data.local.TokenManager
+import com.example.liveroom.data.repository.TokenRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class UserViewModel @Inject constructor() : ViewModel() {
+class UserViewModel @Inject constructor(private val tokenManager: TokenManager) : ViewModel() {
     private val _userId = MutableStateFlow<Int?>(null)
     val userId: StateFlow<Int?> = _userId.asStateFlow()
 
@@ -23,6 +27,20 @@ class UserViewModel @Inject constructor() : ViewModel() {
 
     private val _isAuthenticated = MutableStateFlow(false)
     val isAuthenticated: StateFlow<Boolean> = _isAuthenticated.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            _accessToken.collect { token ->
+                if (token.isNotEmpty()) {
+                    tokenManager.saveAccessToken(token)
+                }
+                else if(token.isEmpty()) {
+                    _accessToken.value = tokenManager.getAccessToken() ?: "null"
+                }
+            }
+        }
+
+    }
 
     fun setUserData(
         userId: Int? = null,
@@ -47,4 +65,5 @@ class UserViewModel @Inject constructor() : ViewModel() {
         _refreshToken.value = ""
         _isAuthenticated.value = false
     }
+
 }

@@ -12,17 +12,15 @@ private val Context.dataStore by preferencesDataStore(name = "user_prefs_live_ro
 
 object DataStoreManager {
 
-    private val TOKEN_KEY = stringPreferencesKey("auth_token")
-
-    suspend fun saveToken(context : Context, token : String) {
+    suspend fun saveToken(context : Context, token : String, tokenKey : String) {
         context.dataStore.edit { preferences ->
-            preferences[TOKEN_KEY] = token
+            preferences[stringPreferencesKey(tokenKey)] = token
         }
     }
 
-    fun getToken(context : Context) : Flow<String?> {
+    fun getToken(context : Context, tokenKey : String) : Flow<String?> {
         return context.dataStore.data.map { preferences ->
-            preferences[TOKEN_KEY]
+            preferences[stringPreferencesKey(tokenKey)]
         }
     }
 

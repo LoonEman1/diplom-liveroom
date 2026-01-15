@@ -24,4 +24,5 @@
     <string name="cannot_be_empty">The server name cannot be empty</string>
     <string name="server_created">The server has been created! Server name:</string>
     <string name="cannot_get_user_data">Error: Failed to retrieve user data</string>
+    <string name="auth_error">Authorization error, please try again later</string>
 </resources>

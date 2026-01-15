@@ -27,10 +27,13 @@ class ServerViewModel @Inject constructor(
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
-    fun loadServers(userId: Int, token: String) {
+    private val _selectedServerId = MutableStateFlow<Int?>(null)
+    val selectedServerId = _selectedServerId.asStateFlow()
+
+    fun loadServers(userId: Int) {
         viewModelScope.launch {
             _isLoading.value = true
-            val result = serverRepository.getServers(userId, token)
+            val result = serverRepository.getServers(userId)
             result.onSuccess { servers ->
                 _servers.value = servers
                 _error.value = null
@@ -41,32 +44,33 @@ class ServerViewModel @Inject constructor(
         }
     }
 
+    fun setSelectedServerId(selectedServerId : Int) {
+        _selectedServerId.value = selectedServerId
+    }
+
     fun createServer(
         name: String,
         imageUri: Uri?,
-        userId: Int,
-        token: String,
         onSuccess: (server: Server) -> Unit,
         onError: (message: String) -> Unit
     ) {
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                val createResult = serverRepository.createServer(name, token)
+                val createResult = serverRepository.createServer(name)
 
                 createResult.onSuccess { createdServer ->
                     Log.d("serverCreation", "Server created: ${createdServer.name}")
+                    _servers.value += createdServer
                     if (imageUri != null) {
                         val avatarResult = serverRepository.uploadServerAvatar(
                             createdServer.id,
                             createdServer.name,
-                            imageUri,
-                            token
+                            imageUri
                         )
 
                         avatarResult.onSuccess { serverWithAvatar ->
                             Log.d("serverCreation", "Avatar uploaded successfully")
-                            _servers.value = _servers.value + serverWithAvatar
                             _error.value = null
                             onSuccess(serverWithAvatar)
                         }.onFailure { exception ->
@@ -97,12 +101,12 @@ class ServerViewModel @Inject constructor(
         }
     }
 
-    fun getServer(userId: Int?, token : String?) {
-        if(userId == null || token == null) return
+    fun getServers(userId: Int?) {
+        if(userId == null) return
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                val result = serverRepository.getServers(userId, token)
+                val result = serverRepository.getServers(userId)
                 result.onSuccess { servers ->
                     _servers.value = servers
                     _error.value = null
