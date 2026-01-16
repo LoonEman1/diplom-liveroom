@@ -43,15 +43,15 @@ class UserViewModel @Inject constructor(private val tokenManager: TokenManager) 
     }
 
     fun setUserData(
-        userId: Int? = null,
-        username: String? = null,
-        accessToken: String? = null,
-        refreshToken: String? = null
+        userId: Int,
+        username: String,
+        accessToken: String,
+        refreshToken: String,
     ) {
-        userId?.let { _userId.value = it }
-        username?.let { _username.value = it }
-        accessToken?.let { _accessToken.value = it }
-        refreshToken?.let { _refreshToken.value = it }
+        _userId.value = userId
+        _username.value = username
+        _accessToken.value = accessToken
+        _refreshToken.value = refreshToken
 
         if (userId != null && accessToken != null) {
             _isAuthenticated.value = true

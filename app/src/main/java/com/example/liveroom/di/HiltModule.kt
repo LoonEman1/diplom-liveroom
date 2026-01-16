@@ -8,6 +8,9 @@ import com.example.liveroom.data.factory.CoilImageLoaderFactory
 import com.example.liveroom.data.local.TokenManager
 import com.example.liveroom.data.remote.api.AuthService
 import com.example.liveroom.data.remote.api.ServerApiService
+import com.example.liveroom.data.remote.dto.AuthResponse
+import com.example.liveroom.data.remote.dto.RefreshTokenRequest
+import com.example.liveroom.data.remote.dto.toRequestBody
 import com.example.liveroom.data.repository.ServerRepository
 import com.example.liveroom.data.repository.TokenRepository
 import com.example.liveroom.ui.viewmodel.UserViewModel
@@ -44,26 +47,19 @@ class HiltModule {
 
     @Singleton
     @Provides
+    fun provideTokenRefreshInterceptor(tokenManager: TokenManager): TokenRefreshInterceptor {
+        return TokenRefreshInterceptor(tokenManager)
+    }
+
+    @Singleton
+    @Provides
     fun provideOkHttpClient(
         loggingInterceptor: HttpLoggingInterceptor,
-        tokenManager: TokenManager
+        tokenRefreshInterceptor: TokenRefreshInterceptor
     ): OkHttpClient {
         return OkHttpClient.Builder()
             .addInterceptor(loggingInterceptor)
-            .addInterceptor { chain ->
-                val url = chain.request().url.toString()
-                Log.d("OkHttpInterceptor", "Request URL: $url")
-               val accessToken = tokenManager.getAccessToken()
-                Log.d("OkHttpInterceptor", "Current token: $accessToken")
-                val request = if (accessToken != null) {
-                    chain.request().newBuilder()
-                        .addHeader("Authorization", "Bearer $accessToken")
-                        .build()
-                } else {
-                    chain.request()
-                }
-                chain.proceed(request)
-            }
+            .addInterceptor(tokenRefreshInterceptor)
             .build()
     }
 

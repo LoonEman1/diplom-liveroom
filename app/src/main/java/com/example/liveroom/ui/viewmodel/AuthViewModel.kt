@@ -3,6 +3,7 @@ package com.example.liveroom.ui.viewmodel
 import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.liveroom.data.local.TokenManager
 import com.example.liveroom.data.remote.dto.AuthResponse
 import com.example.liveroom.data.repository.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -13,7 +14,7 @@ import javax.inject.Inject
 
 
 @HiltViewModel
-class AuthViewModel @Inject constructor(private val repository: AuthRepository) : ViewModel() {
+class AuthViewModel @Inject constructor(private val repository: AuthRepository, private val tokenManager: TokenManager) : ViewModel() {
     private val _registerState = MutableStateFlow<AuthState>(AuthState.Idle)
     val registerState =_registerState.asStateFlow()
 
@@ -56,10 +57,10 @@ class AuthViewModel @Inject constructor(private val repository: AuthRepository) 
     }
 
     fun register(
-        username : String,
-        email : String,
-        password : String,
-        confirmPassword : String
+        username: String,
+        email: String,
+        password: String,
+        confirmPassword: String
     ) {
         viewModelScope.launch {
             _registerState.value = AuthState.Loading
@@ -69,12 +70,20 @@ class AuthViewModel @Inject constructor(private val repository: AuthRepository) 
                 password = password,
                 confirmPassword = confirmPassword
             )
-            _registerState.value = if(result.isSuccess) {
-                AuthState.Success(result.getOrNull()!!)
+            _registerState.value = if (result.isSuccess) {
+                val authResponse = result.getOrNull()!!
+                if (_rememberMe.value) {
+                    tokenManager.saveUserData(
+                        userId = authResponse.userId,
+                        nickname = authResponse.username,
+                        accessToken = authResponse.accessToken,
+                        refreshToken = authResponse.refreshToken,
+                        rememberMe = true
+                    )
+                }
+                AuthState.Success(authResponse)
             } else {
-                AuthState.Error(
-                    result.exceptionOrNull()?.message ?: "Unknown Error"
-                )
+                AuthState.Error(result.exceptionOrNull()?.message ?: "Unknown Error")
             }
         }
     }
@@ -87,7 +96,18 @@ class AuthViewModel @Inject constructor(private val repository: AuthRepository) 
                 password = password
             )
             _loginState.value = if (result.isSuccess) {
-                AuthState.Success(result.getOrNull()!!)
+                val authResponse = result.getOrNull()!!
+                if (_rememberMe.value) {
+                    tokenManager.saveUserData(
+                        userId = authResponse.userId,
+                        nickname = authResponse.username,
+                        accessToken = authResponse.accessToken,
+                        refreshToken = authResponse.refreshToken,
+                        rememberMe = true
+                    )
+                }
+
+                AuthState.Success(authResponse)
             } else {
                 AuthState.Error(result.exceptionOrNull()?.message ?: "Unknown error")
             }

@@ -2,7 +2,9 @@ package com.example.liveroom.data.local
 
 import android.content.Context
 import android.util.Log
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
@@ -24,6 +26,24 @@ object DataStoreManager {
         }
     }
 
+    suspend fun saveRememberMeState(context : Context, state : Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[booleanPreferencesKey("remember_me")] = state
+        }
+    }
+
+    suspend fun saveInt(context: Context, int : Int, key : String) {
+        context.dataStore.edit { preferences ->
+            preferences[intPreferencesKey(key)] = int
+        }
+    }
+
+    fun getRememberMeState(context: Context): Flow<Boolean> {
+        return context.dataStore.data.map { preferences ->
+            preferences[booleanPreferencesKey("remember_me")] ?: false
+        }
+    }
+
     suspend fun clearAllData(context : Context) {
         context.dataStore.edit { preferences ->
             preferences.clear()
@@ -37,6 +57,12 @@ object DataStoreManager {
                 Log.d("DataStore", "$key = $value")
             }
             Log.d("DataStore", "=== End ===")
+        }
+    }
+
+    fun getInt(context: Context, key: String) : Flow<Int?>  {
+        return context.dataStore.data.map { preferences ->
+            preferences[intPreferencesKey(key)]
         }
     }
 }

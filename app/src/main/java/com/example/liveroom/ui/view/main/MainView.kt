@@ -13,6 +13,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -39,7 +40,9 @@ fun MainView(navController: NavController, userViewModel: UserViewModel, serverV
     val userId = userViewModel.userId.collectAsState()
     val accessToken = userViewModel.accessToken.collectAsState()
 
-    serverViewModel.getServers(userId.value)
+    LaunchedEffect(userId) {
+        serverViewModel.getServers(userId.value)
+    }
 
     Row(
         modifier = Modifier

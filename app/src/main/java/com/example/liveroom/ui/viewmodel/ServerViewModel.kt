@@ -30,19 +30,6 @@ class ServerViewModel @Inject constructor(
     private val _selectedServerId = MutableStateFlow<Int?>(null)
     val selectedServerId = _selectedServerId.asStateFlow()
 
-    fun loadServers(userId: Int) {
-        viewModelScope.launch {
-            _isLoading.value = true
-            val result = serverRepository.getServers(userId)
-            result.onSuccess { servers ->
-                _servers.value = servers
-                _error.value = null
-            }.onFailure { exception ->
-                _error.value = exception.message
-            }
-            _isLoading.value = false
-        }
-    }
 
     fun setSelectedServerId(selectedServerId : Int) {
         _selectedServerId.value = selectedServerId
