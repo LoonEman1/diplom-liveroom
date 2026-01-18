@@ -9,6 +9,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -43,17 +44,23 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.Popup
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.example.liveroom.R
@@ -111,7 +118,9 @@ fun LeftNavigation(
                 isSelected = server.id == selectedServerId,
                 onClickServer = {
                     serverViewModel.setSelectedServerId(server.id)
-                }
+                    Log.d("SelectedServer", serverViewModel.selectedServerId.value.toString())
+                },
+                serverViewModel = serverViewModel
             )
         }
     }
@@ -129,14 +138,28 @@ fun LeftNavigation(
 fun ServerItem(
     server : Server,
     isSelected: Boolean = false,
-    onClickServer: () -> Unit
+    onClickServer: () -> Unit,
+    serverViewModel: ServerViewModel
 ) {
+    var showContextMenu by remember { mutableStateOf(false) }
+    var popupOffset by remember { mutableStateOf(Offset.Zero) }
+
     Box(
         modifier = Modifier
             .size(54.dp)
             .clip(RoundedCornerShape(24.dp))
             .background(MaterialTheme.colorScheme.secondary)
-            .clickable { onClickServer() }
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onLongPress = { offset ->
+                        popupOffset = offset
+                        showContextMenu = true
+                    },
+                    onTap = {
+                        onClickServer()
+                    }
+                )
+            }
             .then(
                 if (isSelected) {
                     Modifier.border(
@@ -169,6 +192,15 @@ fun ServerItem(
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+        if(server.myRole.power >= 100)
+        if(showContextMenu) {
+            ServerContextMenu(
+                server = server,
+                onDismiss = { showContextMenu = false },
+                offset = popupOffset,
+                serverViewModel = serverViewModel
             )
         }
     }
@@ -316,6 +348,40 @@ fun CreateServerDialog(
                     modifier = Modifier.weight(1f)
                 )
             }
+        }
+    }
+}
+
+@Composable
+fun ServerContextMenu(
+    server : Server,
+    onDismiss: () -> Unit,
+    offset: Offset,
+    serverViewModel: ServerViewModel
+) {
+    Popup(
+        alignment = Alignment.TopEnd,
+        offset = IntOffset(offset.x.toInt(),offset.y.toInt()),
+        onDismissRequest = { onDismiss() }
+    ) {
+        Column(
+            modifier = Modifier
+                .clip(RoundedCornerShape(14.dp))
+                .background(MaterialTheme.colorScheme.primary)
+                .padding(16.dp)
+        ) {
+            /*Text(
+                text = stringResource(R.string.edit),
+                color = MaterialTheme.colorScheme.onSurface,
+            ) */
+
+            Text(
+                text = stringResource(R.string.delete),
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.clickable {
+                    serverViewModel.deleteServer(server)
+                }
+            )
         }
     }
 }

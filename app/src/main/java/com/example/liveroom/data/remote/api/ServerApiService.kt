@@ -6,6 +6,7 @@ import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import okhttp3.ResponseBody
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.Multipart
@@ -37,10 +38,15 @@ interface ServerApiService {
     suspend fun uploadServerAvatar(
         @Path("serverId") serverId : Int,
         @Part file: MultipartBody.Part,
-    ) : Unit
+    )
 
     @GET("api/servers/{serverId}/avatar")
     suspend fun getServerAvatar(
         @Path("serverId") serverId: Int
     ): ResponseBody
+
+    @DELETE("api/servers/{serverId}")
+    suspend fun deleteServer(
+        @Path("serverId") serverId : Int
+    )
 }

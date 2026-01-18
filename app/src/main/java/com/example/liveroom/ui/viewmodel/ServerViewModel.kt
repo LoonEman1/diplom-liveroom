@@ -9,9 +9,13 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import android.net.Uri
 import android.util.Log
+import com.example.liveroom.data.remote.dto.Role
 import com.example.liveroom.data.remote.dto.Server
 import com.example.liveroom.data.repository.ServerRepository
+import java.sql.Time
+import java.time.format.DateTimeFormatter
 import javax.inject.Inject
+import java.time.Instant
 
 @HiltViewModel
 class ServerViewModel @Inject constructor(
@@ -47,13 +51,23 @@ class ServerViewModel @Inject constructor(
                 val createResult = serverRepository.createServer(name, imageUri)
 
                 createResult.onSuccess { createdServer ->
-                    Log.d("serverCreation", "Server created: ${createdServer.name}")
+                    val serverWithRole = createdServer.copy(
+                        myRole = Role(
+                            id = -1,
+                            name = "OWNER",
+                            power = 100,
+                            canManageMembers = true,
+                            canManageConversations = true
+                        ),
+                        createdAt = Instant.now().toString()
+                    )
 
-                    _servers.value = _servers.value + createdServer
-                    _selectedServerId.value = createdServer.id
+                    Log.d("serverCreation", "Server created: ${createdServer.name}")
+                    _servers.value = _servers.value + serverWithRole
+                    _selectedServerId.value = serverWithRole.id
                     _error.value = null
 
-                    onSuccess(createdServer)
+                    onSuccess(serverWithRole)
                 }.onFailure { exception ->
                     val errorMsg = exception.message ?: "Failed to create server"
                     _error.value = errorMsg
@@ -90,5 +104,31 @@ class ServerViewModel @Inject constructor(
 
     fun clearError() {
         _error.value = null
+    }
+
+    fun deleteServer(server: Server) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                val result = serverRepository.deleteServer(server)
+                result.onSuccess {
+                    _servers.value = _servers.value.filter { it.id != server.id }
+                    if(_selectedServerId.value == server.id) {
+                        _selectedServerId.value = _servers.value.firstOrNull()?.id ?: -1
+                    }
+                    _error.value = null
+                    Log.d("ServerDeletion", "Server deleted: ${server.name}")
+                }.onFailure { exception ->
+                    val errorMessage = exception.message ?: "Failed to delete server"
+                    _error.value = errorMessage
+                    Log.e("ServerDeletion", "Error: ${errorMessage}")
+                }
+            } catch(e : Exception) {
+                _error.value = e.message
+                Log.e("ServerDeletion", "Exception: ${e.message}")
+            } finally {
+                _isLoading.value = false
+            }
+        }
     }
 }

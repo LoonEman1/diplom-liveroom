@@ -76,6 +76,15 @@ class ServerRepository @Inject constructor(
         }
     }
 
+    suspend fun deleteServer(server: Server) : Result<Unit> {
+        return try {
+            val deleteServer = apiService.deleteServer(server.id)
+            Result.success(deleteServer)
+        } catch (e : Exception) {
+            Result.failure(e)
+        }
+    }
+
 
     /*suspend fun uploadServerAvatar(serverId: Int, serverName : String, imageUri: Uri): Result<Server> {
         return try {
