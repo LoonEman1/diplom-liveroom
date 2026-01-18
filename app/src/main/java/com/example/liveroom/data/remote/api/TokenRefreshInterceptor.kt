@@ -8,6 +8,7 @@ import kotlinx.coroutines.runBlocking
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.Response
+import retrofit2.HttpException
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
@@ -38,11 +39,10 @@ class TokenRefreshInterceptor @Inject constructor(
             originalRequest
         }
 
-        val response = chain.proceed(requestWithToken)
+        var response = chain.proceed(requestWithToken)
 
         if (response.code == 401) {
             Log.d("TokenRefreshInterceptor", "Got 401, attempting token refresh")
-            response.close()
 
             val refreshToken = tokenManager.getRefreshToken()
             if (refreshToken != null) {
@@ -73,13 +73,22 @@ class TokenRefreshInterceptor @Inject constructor(
 
                     Log.d("TokenRefreshInterceptor", "Token refreshed successfully")
 
+                    response.close()
+
                     val retryRequest = originalRequest.newBuilder()
                         .addHeader("Authorization", "Bearer ${result.accessToken}")
                         .build()
 
                     return chain.proceed(retryRequest)
                 } catch (e: Exception) {
-                    Log.e("TokenRefreshInterceptor", "Token refresh failed", e)
+                    Log.e("TokenRefreshInterceptor", "Token refresh failed: ${e.message}")
+
+                    if (e is HttpException && e.code() == 401) {
+                        Log.e("TokenRefreshInterceptor", "Refresh token expired, clearing tokens")
+                        runBlocking {
+                            tokenManager.clearToken()
+                        }
+                    }
                 }
             }
         }

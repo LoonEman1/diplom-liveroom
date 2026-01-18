@@ -114,6 +114,8 @@ class TokenManager @Inject constructor(
 
     suspend fun clearToken() {
         _accessToken.value = null
+        _refreshToken.value = null
+        _rememberMe.value = false
         DataStoreManager.clearAllData(context)
     }
 }

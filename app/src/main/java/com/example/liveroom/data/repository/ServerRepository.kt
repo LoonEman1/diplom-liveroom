@@ -5,9 +5,11 @@ import android.net.Uri
 import com.example.liveroom.data.remote.api.ServerApiService
 import com.example.liveroom.data.remote.dto.CreateServerRequest
 import com.example.liveroom.data.remote.dto.Server
+import com.google.gson.Gson
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.File
 import javax.inject.Inject
 
@@ -25,18 +27,57 @@ class ServerRepository @Inject constructor(
         }
     }
 
-    suspend fun createServer(name: String): Result<Server> {
+    suspend fun createServer(
+        name: String,
+        imageUri: Uri?
+    ): Result<Server> {
         return try {
-            val request = CreateServerRequest(name = name)
-            val newServer = apiService.createServer(request)
-            Result.success(newServer)
+            val requestData = CreateServerRequest(name = name)
+            val jsonString = Gson().toJson(requestData)
+            val dataRequestBody = jsonString.toRequestBody("application/json".toMediaType())
+
+            val avatarPart = if (imageUri != null) {
+                val inputStream = context.contentResolver.openInputStream(imageUri)
+                val bytes = inputStream?.readBytes() ?: byteArrayOf()
+
+                val mimeType = when {
+                    imageUri.toString().lowercase().endsWith(".png") -> "image/png"
+                    imageUri.toString().lowercase().endsWith(".gif") -> "image/gif"
+                    imageUri.toString().lowercase().endsWith(".webp") -> "image/webp"
+                    imageUri.toString().lowercase().endsWith(".jpg") ||
+                            imageUri.toString().lowercase().endsWith(".jpeg") -> "image/jpeg"
+                    else -> context.contentResolver.getType(imageUri) ?: "image/jpeg"
+                }
+
+                val requestBody = bytes.toRequestBody(mimeType.toMediaType())
+
+                MultipartBody.Part.createFormData(
+                    "avatar",
+                    imageUri.lastPathSegment ?: "avatar",
+                    requestBody
+                )
+            } else {
+                null
+            }
+
+            val response = if (avatarPart != null) {
+                apiService.createServerWithAvatar(
+                    data = dataRequestBody,
+                    avatar = avatarPart
+                )
+            } else {
+                apiService.createServerWithoutAvatar(
+                    data = dataRequestBody
+                )
+            }
+            Result.success(response)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
 
-    suspend fun uploadServerAvatar(serverId: Int, serverName : String, imageUri: Uri): Result<Server> {
+    /*suspend fun uploadServerAvatar(serverId: Int, serverName : String, imageUri: Uri): Result<Server> {
         return try {
             val inputStream = context.contentResolver.openInputStream(imageUri)
             val tempFile = File(context.cacheDir, "server_avatar_${System.currentTimeMillis()}.jpg")
@@ -58,5 +99,5 @@ class ServerRepository @Inject constructor(
         } catch (e: Exception) {
             Result.failure(e)
         }
-    }
+    } */
 }

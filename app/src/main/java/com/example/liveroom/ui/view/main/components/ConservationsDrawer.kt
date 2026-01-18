@@ -102,7 +102,10 @@ fun LeftNavigation(
             )
         }
 
-        items(serverList) { server ->
+        items(
+            serverList.sortedByDescending { it.id },
+            key = { it.id }
+        ) { server ->
             ServerItem(
                 server = server,
                 isSelected = server.id == selectedServerId,

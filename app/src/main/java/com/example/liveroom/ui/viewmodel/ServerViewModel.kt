@@ -44,42 +44,23 @@ class ServerViewModel @Inject constructor(
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                val createResult = serverRepository.createServer(name)
+                val createResult = serverRepository.createServer(name, imageUri)
 
                 createResult.onSuccess { createdServer ->
                     Log.d("serverCreation", "Server created: ${createdServer.name}")
-                    _servers.value += createdServer
-                    if (imageUri != null) {
-                        val avatarResult = serverRepository.uploadServerAvatar(
-                            createdServer.id,
-                            createdServer.name,
-                            imageUri
-                        )
 
-                        avatarResult.onSuccess { serverWithAvatar ->
-                            Log.d("serverCreation", "Avatar uploaded successfully")
-                            _error.value = null
-                            onSuccess(serverWithAvatar)
-                        }.onFailure { exception ->
-                            Log.d("serverCreation", "Avatar upload failed ${exception.message}")
-                            val errorMsg = exception.message ?: "Failed to upload avatar"
-                            _error.value = errorMsg
-                            onError(errorMsg)
-                        }
-                    } else {
-                        Log.d("serverCreation", "No avatar")
-                        _servers.value = _servers.value + createdServer
-                        _error.value = null
-                        onSuccess(createdServer)
-                    }
+                    _servers.value = _servers.value + createdServer
+                    _selectedServerId.value = createdServer.id
+                    _error.value = null
+
+                    onSuccess(createdServer)
                 }.onFailure { exception ->
-                    Log.d("serverCreation", "Server creation failed: ${exception.message}")
                     val errorMsg = exception.message ?: "Failed to create server"
                     _error.value = errorMsg
                     onError(errorMsg)
                 }
-            } catch (e: Exception) {
-                Log.d("serverCreation", "Exception: ${e.message}")
+            } catch (e : Exception) {
+                Log.d("ServerCreation", "Exception : ${e.message}")
                 _error.value = e.message
                 onError(e.message ?: "Unknown error")
             } finally {
