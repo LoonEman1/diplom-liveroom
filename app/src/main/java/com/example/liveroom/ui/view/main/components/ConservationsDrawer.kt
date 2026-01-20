@@ -54,6 +54,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.toLowerCase
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -61,10 +63,14 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.Popup
+import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.example.liveroom.R
+import com.example.liveroom.data.model.ServerFormData
+import com.example.liveroom.data.remote.dto.Role
 import com.example.liveroom.data.remote.dto.Server
+import com.example.liveroom.di.AppConfig
 import com.example.liveroom.ui.components.CustomTextField
 import com.example.liveroom.ui.components.PrimaryButton
 import com.example.liveroom.ui.viewmodel.ServerViewModel
@@ -79,9 +85,12 @@ fun LeftNavigation(
     userViewModel: UserViewModel
 ) {
 
-    var showCreateServerDialog by remember { mutableStateOf(false) }
+    var showServerDialog by remember { mutableStateOf(false) }
+    var dialogMode by remember { mutableStateOf(ServerDialogMode.CREATE) }
+
     val serverList by serverViewModel.servers.collectAsState()
     val selectedServerId by serverViewModel.selectedServerId.collectAsState()
+    var selectedServer by remember { mutableStateOf<Server?>(null) }
 
     LaunchedEffect(serverList) {
 
@@ -102,8 +111,10 @@ fun LeftNavigation(
                     .clip(RoundedCornerShape(24.dp))
                     .background(MaterialTheme.colorScheme.secondary)
                     .clickable {
-                        showCreateServerDialog = true
+                        dialogMode = ServerDialogMode.CREATE
+                        showServerDialog = true
                         onTabSelected("create_server")
+                        selectedServer = null
                     },
                 colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface)
             )
@@ -120,17 +131,85 @@ fun LeftNavigation(
                     serverViewModel.setSelectedServerId(server.id)
                     Log.d("SelectedServer", serverViewModel.selectedServerId.value.toString())
                 },
-                serverViewModel = serverViewModel
+                serverViewModel = serverViewModel,
+                onEditServer = {
+                    showServerDialog = true
+                    dialogMode = ServerDialogMode.EDIT
+                    selectedServer = server
+                },
+                onDeleteServer = {
+                    showServerDialog = true
+                    dialogMode = ServerDialogMode.DELETE
+                    selectedServer = server
+                },
             )
         }
     }
 
-    if (showCreateServerDialog) {
-        CreateServerDialog(
-            onDismiss = { showCreateServerDialog = false },
-            userViewModel = userViewModel,
-            serverViewModel = serverViewModel
+
+    if (showServerDialog) {
+        val toastText = stringResource(R.string.cannot_be_empty)
+        val toastCreatedServerText = stringResource(R.string.server_created)
+        val toastError = stringResource(R.string.cannot_get_user_data)
+        val context = LocalContext.current
+        ServerDialog(
+            onDismiss = { showServerDialog = false },
+            selectedServer = selectedServer,
+            dialogMode = dialogMode,
+            onConfirmClick = { formData ->
+                when (dialogMode) {
+                    ServerDialogMode.CREATE -> {
+                        val userId = userViewModel.userId.value
+                        val token = userViewModel.accessToken.value
+
+                        if (userId != null && token != null) {
+                            if(formData.name.isNotBlank()) {
+                                serverViewModel.createServer(
+                                    name = formData.name,
+                                    imageUri = formData.avatarUrl?.toUri(),
+                                    onSuccess = {
+                                        Toast.makeText(
+                                            context,
+                                            "$toastCreatedServerText ${formData.name}",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    },
+                                    onError = { error ->
+                                        Toast.makeText(context, toastError, Toast.LENGTH_SHORT)
+                                            .show()
+                                    }
+                                )
+                            } else {
+                                Toast.makeText(context, toastText, Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                    ServerDialogMode.EDIT -> {
+
+                        /*
+                        serverViewModel.updateServer(
+                            serverId = selectedServerForEdit?.id ?: return@ServerDialog,
+                            name = formData.name,
+                            imageUri = formData.localImageUri,
+                            onSuccess = {
+                                Toast.makeText(context, "Сервер обновлен", Toast.LENGTH_SHORT).show()
+                            },
+                            onError = { error ->
+                                Toast.makeText(context, error, Toast.LENGTH_SHORT).show()
+                            }
+                        )
+                         */
+                    }
+                    ServerDialogMode.DELETE -> {
+                        /*
+                        serverViewModel.deleteServer(selectedServerForEdit ?: return@ServerDialog)
+                        Toast.makeText(context, "Сервер удален", Toast.LENGTH_SHORT).show()
+                         */
+                    }
+                }
+            }
         )
+        Log.d("selectedServer", "avatarUrl : ${selectedServer?.avatarUrl.toString()}")
     }
 }
 
@@ -139,7 +218,9 @@ fun ServerItem(
     server : Server,
     isSelected: Boolean = false,
     onClickServer: () -> Unit,
-    serverViewModel: ServerViewModel
+    serverViewModel: ServerViewModel,
+    onEditServer: () -> Unit,
+    onDeleteServer: () -> Unit
 ) {
     var showContextMenu by remember { mutableStateOf(false) }
     var popupOffset by remember { mutableStateOf(Offset.Zero) }
@@ -175,7 +256,7 @@ fun ServerItem(
     ) {
         if (server.avatarUrl != null) {
             AsyncImage(
-                model = "https://nighthunting23.ru${server.avatarUrl}",
+                model = "${AppConfig.IMAGE_BASE_URL}${server.avatarUrl}",
                 contentDescription = server.name,
                 modifier = Modifier
                     .fillMaxSize()
@@ -200,7 +281,13 @@ fun ServerItem(
                 server = server,
                 onDismiss = { showContextMenu = false },
                 offset = popupOffset,
-                serverViewModel = serverViewModel
+                serverViewModel = serverViewModel,
+                onEdit = {
+                    onEditServer()
+                },
+                onDelete =  {
+                    onDeleteServer()
+                }
             )
         }
     }
@@ -209,23 +296,56 @@ fun ServerItem(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CreateServerDialog(
+fun ServerDialog(
     onDismiss: () -> Unit,
-    serverViewModel: ServerViewModel,
-    userViewModel: UserViewModel
+    onConfirmClick:(server : ServerFormData) -> Unit,
+    dialogMode: ServerDialogMode,
+    selectedServer : Server?
 ) {
     var serverName by remember { mutableStateOf("") }
-    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
-    val context = LocalContext.current
-    val toastText = stringResource(R.string.cannot_be_empty)
-    val toastCreatedServerText = stringResource(R.string.server_created)
-    val toastError = stringResource(R.string.cannot_get_user_data)
+
+    val imageUrl = when(dialogMode) {
+        ServerDialogMode.EDIT -> {
+            AppConfig.IMAGE_BASE_URL + selectedServer?.avatarUrl
+        }
+        else -> null
+    }
+
+    var imageModel : Any? by remember { mutableStateOf(imageUrl) }
+
+    val server = when (dialogMode) {
+        ServerDialogMode.CREATE -> null
+        ServerDialogMode.EDIT -> "${stringResource(R.string.server)} ${selectedServer?.name}"
+        ServerDialogMode.DELETE -> "${stringResource(R.string.server)} ${selectedServer?.name}"
+    }
+
+    val title = when (dialogMode){
+        ServerDialogMode.CREATE -> stringResource(R.string.create_new_server)
+        ServerDialogMode.EDIT -> stringResource(R.string.edit_server)
+        ServerDialogMode.DELETE -> stringResource(R.string.delete_server)
+    }
+
+    val showAsyncImage = when(dialogMode) {
+        ServerDialogMode.CREATE, ServerDialogMode.EDIT -> true
+        ServerDialogMode.DELETE -> false
+    }
+
+   val subTitle = when(dialogMode) {
+        ServerDialogMode.DELETE ->{
+            stringResource(R.string.confirm_delete_server) + " ${selectedServer?.name}"
+        }
+        else -> null
+    }
+
+
+
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        selectedImageUri = uri
+        imageModel = uri
     }
+
 
     BasicAlertDialog(
         onDismissRequest = onDismiss,
@@ -240,51 +360,71 @@ fun CreateServerDialog(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = stringResource(R.string.create_new_server),
-                style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.onSurface
+                text = title,
+                style = MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center
             )
-
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .size(120.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(MaterialTheme.colorScheme.secondary)
-                    .clickable {
-                        imagePickerLauncher.launch("image/*")
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                if(selectedImageUri != null) {
-                    AsyncImage(
-                        model = selectedImageUri,
-                        contentDescription = "Server Icon",
-                        modifier = Modifier
-                            .size(100.dp)
-                            .clip(RoundedCornerShape(24.dp)),
-                        contentScale = ContentScale.Crop,
-                        alignment = Alignment.Center
-                    )
-                } else {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center,
-                        modifier = Modifier
-                            .size(120.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Add,
-                            contentDescription = "Add Image",
-                            modifier = Modifier.size(40.dp),
-                            tint = MaterialTheme.colorScheme.onSurface
+            if(server != null) {
+                Text(
+                    text = server,
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center
+                )
+            }
+            if(subTitle != null)
+            {
+                Text(
+                    text = subTitle,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center
+                )
+            }
+            if(showAsyncImage != false) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .size(120.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.secondary)
+                        .clickable {
+                            imagePickerLauncher.launch("image/*")
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (imageModel != null) {
+                        AsyncImage(
+                            model = imageModel,
+                            contentDescription = "Server Icon",
+                            modifier = Modifier
+                                .size(100.dp)
+                                .clip(RoundedCornerShape(24.dp)),
+                            contentScale = ContentScale.Crop,
+                            alignment = Alignment.Center
                         )
+                    } else {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center,
+                            modifier = Modifier
+                                .size(120.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Add,
+                                contentDescription = "Add Image",
+                                modifier = Modifier.size(40.dp),
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
 
-                        Text(
-                            text = stringResource(R.string.add_image),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
+                            Text(
+                                text = stringResource(R.string.add_image),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                textAlign = TextAlign.Center
+                            )
+                        }
                     }
                 }
             }
@@ -307,43 +447,21 @@ fun CreateServerDialog(
                     containerColor = MaterialTheme.colorScheme.error
                 )
 
+                val string = when (dialogMode) {
+                    ServerDialogMode.CREATE -> stringResource(R.string.create)
+                    ServerDialogMode.EDIT -> stringResource(R.string.edit)
+                    ServerDialogMode.DELETE -> stringResource(R.string.delete)
+                }
                 PrimaryButton(
-                    text = stringResource(R.string.create),
+                    text = string,
                     onClick = {
-                        if (serverName.isNotBlank()) {
-                            val userId = userViewModel.userId.value
-                            val token = userViewModel.accessToken.value
-
-                            if (userId != null && token != null) {
-                                serverViewModel.createServer(
-                                    name = serverName,
-                                    imageUri = selectedImageUri,
-                                    onSuccess = { server ->
-                                        Toast.makeText(
-                                            context,
-                                             "$toastCreatedServerText ${serverName}",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
-                                        onDismiss()
-                                    },
-                                    onError = { error ->
-                                        Toast.makeText(
-                                            context,
-                                            error,
-                                            Toast.LENGTH_SHORT
-                                        ).show()
-                                    }
-                                )
-                            } else {
-                                Toast.makeText(
-                                    context,
-                                    toastError,
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            }
-                        } else {
-                            Toast.makeText(context, toastText, Toast.LENGTH_SHORT).show()
-                        }
+                        onConfirmClick(
+                            ServerFormData(
+                                id = null,
+                                name = serverName,
+                                avatarUrl = imageModel.toString(),
+                            )
+                        )
                     },
                     modifier = Modifier.weight(1f)
                 )
@@ -357,8 +475,11 @@ fun ServerContextMenu(
     server : Server,
     onDismiss: () -> Unit,
     offset: Offset,
-    serverViewModel: ServerViewModel
+    serverViewModel: ServerViewModel,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
 ) {
+
     Popup(
         alignment = Alignment.TopEnd,
         offset = IntOffset(offset.x.toInt(),offset.y.toInt()),
@@ -370,20 +491,26 @@ fun ServerContextMenu(
                 .background(MaterialTheme.colorScheme.primary)
                 .padding(16.dp)
         ) {
-            /*Text(
+            Text(
                 text = stringResource(R.string.edit),
                 color = MaterialTheme.colorScheme.onSurface,
-            ) */
+                modifier = Modifier.clickable {
+                    onEdit()
+                }
+            )
 
             Text(
                 text = stringResource(R.string.delete),
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.clickable {
-                    serverViewModel.deleteServer(server)
+                    onDelete()
+                    //serverViewModel.deleteServer(server)
                 }
             )
         }
     }
+
+
 }
 
 
@@ -401,13 +528,6 @@ fun PreviewServerDialog() {
         serverViewModel = serverViewModel,
         userViewModel = userViewModel
 
-    )
-    CreateServerDialog(
-        onDismiss =  {
-
-        },
-        serverViewModel = serverViewModel,
-        userViewModel = userViewModel
     )
 }
 

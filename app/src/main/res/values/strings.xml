@@ -27,4 +27,8 @@
     <string name="auth_error">Authorization error, please try again later</string>
     <string name="edit">Edit</string>
     <string name="delete">Delete</string>
+    <string name="edit_server">Editing</string>
+    <string name="delete_server">Deleting</string>
+    <string name="confirm_delete_server">To confirm the deletion of the server, enter the name of the server you want to delete:</string>
+    <string name="server">Server: </string>
 </resources>

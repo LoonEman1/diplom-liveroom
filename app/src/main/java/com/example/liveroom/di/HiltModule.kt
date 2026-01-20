@@ -31,6 +31,7 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 class HiltModule {
 
+
     @Singleton
     @Provides
     fun provideHttpLoggingInterceptor() : HttpLoggingInterceptor {
@@ -71,7 +72,7 @@ class HiltModule {
     @Provides
     fun provideRetrofit(okHttpClient : OkHttpClient): Retrofit {
         return Retrofit.Builder()
-            .baseUrl("https://nighthunting23.ru/")
+            .baseUrl(AppConfig.BASE_URL)
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()

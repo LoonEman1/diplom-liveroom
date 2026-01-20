@@ -131,4 +131,9 @@ class ServerViewModel @Inject constructor(
             }
         }
     }
+
+    fun editServer(server: Server) {
+
+    }
+
 }
