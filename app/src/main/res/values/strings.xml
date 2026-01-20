@@ -31,4 +31,5 @@
     <string name="delete_server">Deleting</string>
     <string name="confirm_delete_server">To confirm the deletion of the server, enter the name of the server you want to delete:</string>
     <string name="server">Server: </string>
+    <string name="server_deleted">The server has been successfully deleted!</string>
 </resources>

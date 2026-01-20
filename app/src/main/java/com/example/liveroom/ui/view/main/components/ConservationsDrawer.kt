@@ -91,6 +91,7 @@ fun LeftNavigation(
     val serverList by serverViewModel.servers.collectAsState()
     val selectedServerId by serverViewModel.selectedServerId.collectAsState()
     var selectedServer by remember { mutableStateOf<Server?>(null) }
+    var isErrorInDialog by remember {mutableStateOf<Boolean>(false)}
 
     LaunchedEffect(serverList) {
 
@@ -151,6 +152,7 @@ fun LeftNavigation(
         val toastText = stringResource(R.string.cannot_be_empty)
         val toastCreatedServerText = stringResource(R.string.server_created)
         val toastError = stringResource(R.string.cannot_get_user_data)
+        val toastServerDeleted = stringResource(R.string.server_deleted)
         val context = LocalContext.current
         ServerDialog(
             onDismiss = { showServerDialog = false },
@@ -168,6 +170,7 @@ fun LeftNavigation(
                                     name = formData.name,
                                     imageUri = formData.avatarUrl?.toUri(),
                                     onSuccess = {
+                                        isErrorInDialog = false
                                         Toast.makeText(
                                             context,
                                             "$toastCreatedServerText ${formData.name}",
@@ -179,7 +182,9 @@ fun LeftNavigation(
                                             .show()
                                     }
                                 )
+                                showServerDialog = false
                             } else {
+                                isErrorInDialog = true
                                 Toast.makeText(context, toastText, Toast.LENGTH_SHORT).show()
                             }
                         }
@@ -201,13 +206,32 @@ fun LeftNavigation(
                          */
                     }
                     ServerDialogMode.DELETE -> {
-                        /*
-                        serverViewModel.deleteServer(selectedServerForEdit ?: return@ServerDialog)
-                        Toast.makeText(context, "Сервер удален", Toast.LENGTH_SHORT).show()
-                         */
+                        val userId = userViewModel.userId.value
+                        val token = userViewModel.accessToken.value
+                        val currentServer = selectedServer
+                        if (userId != null && token != null && currentServer != null) {
+                            if (formData.name.isNotBlank() && formData.name == currentServer.name) {
+                                serverViewModel.deleteServer(
+                                    currentServer,
+                                    onSuccess = {
+                                        Toast.makeText(context, toastServerDeleted, Toast.LENGTH_SHORT).show()
+                                        isErrorInDialog = false
+                                    },
+                                    onError = { error ->
+                                        Toast.makeText(context, toastError, Toast.LENGTH_SHORT)
+                                            .show()
+                                    }
+                                )
+                                showServerDialog = false
+                            } else {
+                                Toast.makeText(context, toastText, Toast.LENGTH_SHORT).show()
+                                isErrorInDialog = true
+                            }
+                        }
                     }
                 }
-            }
+            },
+            isError = isErrorInDialog
         )
         Log.d("selectedServer", "avatarUrl : ${selectedServer?.avatarUrl.toString()}")
     }
@@ -300,7 +324,8 @@ fun ServerDialog(
     onDismiss: () -> Unit,
     onConfirmClick:(server : ServerFormData) -> Unit,
     dialogMode: ServerDialogMode,
-    selectedServer : Server?
+    selectedServer : Server?,
+    isError : Boolean = false
 ) {
     var serverName by remember { mutableStateOf("") }
 
@@ -433,7 +458,8 @@ fun ServerDialog(
                 value = serverName,
                 onValueChange = { serverName = it },
                 label = stringResource(R.string.server_name),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                isError = isError
             )
 
             Row(

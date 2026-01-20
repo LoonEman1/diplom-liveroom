@@ -106,11 +106,14 @@ class ServerViewModel @Inject constructor(
         _error.value = null
     }
 
-    fun deleteServer(server: Server) {
+    fun deleteServer(
+        server: Server,
+        onSuccess: () -> Unit,
+        onError: (message: String) -> Unit) {
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                val result = serverRepository.deleteServer(server)
+                val result = serverRepository.deleteServer(server.id)
                 result.onSuccess {
                     _servers.value = _servers.value.filter { it.id != server.id }
                     if(_selectedServerId.value == server.id) {
@@ -118,10 +121,12 @@ class ServerViewModel @Inject constructor(
                     }
                     _error.value = null
                     Log.d("ServerDeletion", "Server deleted: ${server.name}")
+                    onSuccess()
                 }.onFailure { exception ->
                     val errorMessage = exception.message ?: "Failed to delete server"
                     _error.value = errorMessage
                     Log.e("ServerDeletion", "Error: ${errorMessage}")
+                    onError(errorMessage)
                 }
             } catch(e : Exception) {
                 _error.value = e.message

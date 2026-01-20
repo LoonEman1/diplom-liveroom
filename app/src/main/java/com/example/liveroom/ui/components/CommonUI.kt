@@ -1,6 +1,7 @@
 package com.example.liveroom.ui.components
 
 import android.graphics.drawable.Icon
+import android.util.Log
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -24,6 +25,12 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -38,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.liveroom.R
 import com.example.liveroom.ui.theme.ButtonColor
+import kotlinx.coroutines.delay
 
 @Composable
 fun CustomTextField(
@@ -51,7 +59,8 @@ fun CustomTextField(
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     keyboardActions: KeyboardActions = KeyboardActions.Default,
     textColor: Color = Color.Gray,
-    singleLine: Boolean = true
+    singleLine: Boolean = true,
+    isError : Boolean = false
 ) {
 
     val colors = MaterialTheme.colorScheme
@@ -85,6 +94,7 @@ fun CustomTextField(
             errorTextColor = colors.onSurface,
             errorLabelColor = colors.error
         ),
+        isError = isError
     )
 }
 
@@ -95,10 +105,20 @@ fun PrimaryButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     icon : (@Composable () -> Unit)? = null,
-    containerColor: Color = ButtonColor
+    containerColor: Color = ButtonColor,
+    debounceMs: Long = 1000L
 ) {
+    val lastClickTime = remember { mutableLongStateOf(0L) }
+
     Button(
-        onClick = onClick,
+        onClick = {
+            val now = System.currentTimeMillis()
+            if(now - lastClickTime.longValue >= debounceMs) {
+                Log.d("ButtonClick", "now=$now, last=${lastClickTime.longValue}, diff=${now - lastClickTime.longValue}")
+                lastClickTime.longValue = now
+                onClick()
+            }
+        },
         modifier = modifier
             .padding(top = 20.dp)
             .fillMaxWidth(0.7f),

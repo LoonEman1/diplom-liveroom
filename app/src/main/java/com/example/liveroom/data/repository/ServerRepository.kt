@@ -76,9 +76,9 @@ class ServerRepository @Inject constructor(
         }
     }
 
-    suspend fun deleteServer(server: Server) : Result<Unit> {
+    suspend fun deleteServer(serverId: Int) : Result<Unit> {
         return try {
-            val deleteServer = apiService.deleteServer(server.id)
+            val deleteServer = apiService.deleteServer(serverId)
             Result.success(deleteServer)
         } catch (e : Exception) {
             Result.failure(e)
