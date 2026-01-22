@@ -7,6 +7,7 @@ import com.example.liveroom.data.local.TokenManager
 import com.example.liveroom.data.remote.dto.AuthResponse
 import com.example.liveroom.data.repository.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch

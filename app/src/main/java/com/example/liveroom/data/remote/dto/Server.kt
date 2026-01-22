@@ -20,3 +20,7 @@ data class Role(
 data class CreateServerRequest(
     val name: String
 )
+
+data class UpdateServerRequest(
+    val name: String?
+)

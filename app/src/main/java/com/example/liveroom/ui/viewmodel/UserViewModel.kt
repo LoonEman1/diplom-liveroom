@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.liveroom.data.local.TokenManager
 import com.example.liveroom.data.repository.TokenRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -29,7 +30,7 @@ class UserViewModel @Inject constructor(private val tokenManager: TokenManager) 
     val isAuthenticated: StateFlow<Boolean> = _isAuthenticated.asStateFlow()
 
     init {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             _accessToken.collect { token ->
                 if (token.isNotEmpty()) {
                     tokenManager.saveAccessToken(token)

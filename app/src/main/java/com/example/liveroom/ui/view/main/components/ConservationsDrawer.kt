@@ -91,7 +91,7 @@ fun LeftNavigation(
     val serverList by serverViewModel.servers.collectAsState()
     val selectedServerId by serverViewModel.selectedServerId.collectAsState()
     var selectedServer by remember { mutableStateOf<Server?>(null) }
-    var isErrorInDialog by remember {mutableStateOf<Boolean>(false)}
+    var isErrorInDialog by remember {mutableStateOf(false)}
 
     LaunchedEffect(serverList) {
 
@@ -150,6 +150,7 @@ fun LeftNavigation(
 
     if (showServerDialog) {
         val toastText = stringResource(R.string.cannot_be_empty)
+        val toastEditText = stringResource(R.string.editToastText)
         val toastCreatedServerText = stringResource(R.string.server_created)
         val toastError = stringResource(R.string.cannot_get_user_data)
         val toastServerDeleted = stringResource(R.string.server_deleted)
@@ -165,7 +166,7 @@ fun LeftNavigation(
                         val token = userViewModel.accessToken.value
 
                         if (userId != null && token != null) {
-                            if(formData.name.isNotBlank()) {
+                            if(!formData.name.isNullOrBlank()) {
                                 serverViewModel.createServer(
                                     name = formData.name,
                                     imageUri = formData.avatarUrl?.toUri(),
@@ -190,27 +191,47 @@ fun LeftNavigation(
                         }
                     }
                     ServerDialogMode.EDIT -> {
-
-                        /*
-                        serverViewModel.updateServer(
-                            serverId = selectedServerForEdit?.id ?: return@ServerDialog,
-                            name = formData.name,
-                            imageUri = formData.localImageUri,
-                            onSuccess = {
-                                Toast.makeText(context, "Сервер обновлен", Toast.LENGTH_SHORT).show()
-                            },
-                            onError = { error ->
-                                Toast.makeText(context, error, Toast.LENGTH_SHORT).show()
+                        val userId = userViewModel.userId.value
+                        val token = userViewModel.accessToken.value
+                        val serverId = selectedServer?.id
+                        when {
+                            userId == null || token == null -> {
+                                Log.w("ServerDialog", "User ID or token is null")
+                                Toast.makeText(context, toastError, Toast.LENGTH_SHORT).show()
                             }
-                        )
-                         */
+                            serverId == null -> {
+                                Log.w("ServerDialog", "Server ID is null")
+                            }
+                            else -> {
+                                Log.d("ServerDialog", "Starting editServer: name=${formData.name}, avatarUrl=${formData.avatarUrl}")
+
+                                serverViewModel.editServer(
+                                    serverId = serverId,
+                                    name = formData.name,
+                                    imageUri = formData.avatarUrl,
+                                    onSuccess = {
+                                        Log.i("ServerDialog", "Edit success, closing dialog")
+                                        showServerDialog = false
+                                        Toast.makeText(
+                                            context,
+                                            "Server updated: ${formData.name}",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    },
+                                    onError = { error ->
+                                        Log.e("ServerDialog", "Edit error: $error")
+                                        Toast.makeText(context, "Error: $error", Toast.LENGTH_SHORT).show()
+                                    }
+                                )
+                            }
+                        }
                     }
                     ServerDialogMode.DELETE -> {
                         val userId = userViewModel.userId.value
                         val token = userViewModel.accessToken.value
                         val currentServer = selectedServer
                         if (userId != null && token != null && currentServer != null) {
-                            if (formData.name.isNotBlank() && formData.name == currentServer.name) {
+                            if (!formData.name.isNullOrBlank() && formData.name == currentServer.name) {
                                 serverViewModel.deleteServer(
                                     currentServer,
                                     onSuccess = {
@@ -234,6 +255,7 @@ fun LeftNavigation(
             isError = isErrorInDialog
         )
         Log.d("selectedServer", "avatarUrl : ${selectedServer?.avatarUrl.toString()}")
+        Log.d("selectedServer", "server id : ${selectedServer?.id.toString()}")
     }
 }
 
@@ -300,6 +322,7 @@ fun ServerItem(
             )
         }
         if(server.myRole.power >= 100)
+
         if(showContextMenu) {
             ServerContextMenu(
                 server = server,
@@ -329,14 +352,21 @@ fun ServerDialog(
 ) {
     var serverName by remember { mutableStateOf("") }
 
-    val imageUrl = when(dialogMode) {
+    val previousServerName = if (selectedServer != null && dialogMode == ServerDialogMode.EDIT) {
+        selectedServer.name
+    } else null
+    if(previousServerName != null) serverName = previousServerName
+
+    val initialImageUrl = when(dialogMode) {
         ServerDialogMode.EDIT -> {
-            AppConfig.IMAGE_BASE_URL + selectedServer?.avatarUrl
+            selectedServer?.avatarUrl?.let {
+                AppConfig.IMAGE_BASE_URL + it
+            }
         }
         else -> null
     }
 
-    var imageModel : Any? by remember { mutableStateOf(imageUrl) }
+    var imageModel : Any? by remember { mutableStateOf(initialImageUrl) }
 
     val server = when (dialogMode) {
         ServerDialogMode.CREATE -> null
@@ -407,7 +437,7 @@ fun ServerDialog(
                     textAlign = TextAlign.Center
                 )
             }
-            if(showAsyncImage != false) {
+            if(showAsyncImage) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -484,8 +514,14 @@ fun ServerDialog(
                         onConfirmClick(
                             ServerFormData(
                                 id = null,
-                                name = serverName,
-                                avatarUrl = imageModel.toString(),
+                                name = if (serverName != (previousServerName ?: "")) serverName else null,
+                                avatarUrl = if (imageModel is Uri) {
+                                    Log.d("imageUri", imageModel.toString())
+                                    imageModel.toString()
+                                } else {
+                                    Log.d("imageUri", "image model is not Uri -> return null: ${imageModel.toString()}")
+                                    null
+                                }
                             )
                         )
                     },

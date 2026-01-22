@@ -4,6 +4,6 @@ import android.net.Uri
 
 data class ServerFormData(
     val id : Int?,
-    val name : String,
+    val name : String?,
     val avatarUrl : String? = null
 )
