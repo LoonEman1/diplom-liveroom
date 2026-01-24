@@ -39,4 +39,6 @@
     <string name="enter_nickname">Enter the nickname of the user you want to invite</string>
     <string name="label_enter_nickname">Enter nickname</string>
     <string name="invite">Invite</string>
+    <string name="generate_token_tab">Generate a token and share it with the user who needs to access the server</string>
+    <string name="current_token">Current token:</string>
 </resources>

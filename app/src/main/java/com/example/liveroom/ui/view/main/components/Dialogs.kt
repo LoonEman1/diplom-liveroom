@@ -308,7 +308,7 @@ fun InviteDialog(
                     }, nickname)
                 }
                 InviteTab.GENERATE -> {
-                    Text("generate", color = MaterialTheme.colorScheme.onSurface)
+                    GenerateTokenTab(onGenerate = onInvite)
                 }
             }
         }
@@ -316,7 +316,7 @@ fun InviteDialog(
 }
 
 @Composable
-fun InviteByUsernameTab(onInvite: () -> Unit, onNicknameChange : (String) -> Unit, nickname : String) {
+fun InviteByUsernameTab(onSubmit: () -> Unit, onNicknameChange : (String) -> Unit, nickname : String) {
 
     Column(
         modifier = Modifier
@@ -336,8 +336,36 @@ fun InviteByUsernameTab(onInvite: () -> Unit, onNicknameChange : (String) -> Uni
             isError = nickname.isBlank()
         )
         PrimaryButton(
-            onClick = onInvite,
+            onClick = onSubmit,
             text = stringResource(R.string.invite)
+        )
+    }
+}
+
+@Composable
+fun GenerateTokenTab(
+    onGenerate: () -> Unit,
+    token : String? = null
+) {
+    Column(
+        modifier = Modifier
+            .padding(bottom = 10.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            stringResource(R.string.generate_token_tab),
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        if(token != null) {
+            Text(
+                text= stringResource(R.string.current_token) + token,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+        Spacer(modifier = Modifier.height(6.dp))
+        PrimaryButton(
+            onClick = onGenerate,
+            text = stringResource(R.string.generate_token)
         )
     }
 }
@@ -379,3 +407,4 @@ fun PreviewInviteDialog() {
         )
     }
 }
+
