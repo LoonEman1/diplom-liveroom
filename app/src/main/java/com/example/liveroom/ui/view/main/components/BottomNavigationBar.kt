@@ -21,6 +21,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.liveroom.R
+import com.example.liveroom.ui.theme.LiveRoomTheme
 
 
 @Composable
@@ -109,5 +110,7 @@ fun BottomNavigationBar(selectedTab: String, onTabSelected: (String) -> Unit) {
 @Preview
 @Composable
 fun PreviewBottomNavBar() {
-    BottomNavigationBar("home") { }
+    LiveRoomTheme {
+        BottomNavigationBar("home") { }
+    }
 }

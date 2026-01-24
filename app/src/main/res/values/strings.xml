@@ -33,4 +33,10 @@
     <string name="server">Server: </string>
     <string name="server_deleted">The server has been successfully deleted!</string>
     <string name="editToastText">The server name must not be empty and must not match the previous name</string>
+    <string name="invite_to_server">Invite to Server</string>
+    <string name="generate_token">Generate a token</string>
+    <string name="invite_by_nickname">Invite by nickname</string>
+    <string name="enter_nickname">Enter the nickname of the user you want to invite</string>
+    <string name="label_enter_nickname">Enter nickname</string>
+    <string name="invite">Invite</string>
 </resources>

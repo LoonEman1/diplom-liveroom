@@ -46,6 +46,7 @@ import com.example.liveroom.R
 import com.example.liveroom.ui.components.CustomTextField
 import com.example.liveroom.ui.components.PrimaryButton
 import com.example.liveroom.ui.navigation.Screen
+import com.example.liveroom.ui.theme.LiveRoomTheme
 import com.example.liveroom.ui.theme.linkTextColor
 
 @Composable
@@ -273,44 +274,46 @@ fun PreviewAuthFormView() {
 @Preview
 @Composable
 fun PreviewAuthFormViewRegistration() {
-    val loginState = remember { mutableStateOf("") }
-    val emailState = remember { mutableStateOf("") }
-    val passwordState = remember { mutableStateOf("") }
-    AuthFormView(
-        title = stringResource(R.string.registration_title),
-        subtitle = stringResource(R.string.registration_subtitle),
-        fields = listOf(
-            AuthFieldConfig(
-                label = stringResource(R.string.nickname),
-                value = loginState.value,
-                onValueChange = { loginState.value = it },
-                fieldType = "login"
+    LiveRoomTheme {
+        val loginState = remember { mutableStateOf("") }
+        val emailState = remember { mutableStateOf("") }
+        val passwordState = remember { mutableStateOf("") }
+        AuthFormView(
+            title = stringResource(R.string.registration_title),
+            subtitle = stringResource(R.string.registration_subtitle),
+            fields = listOf(
+                AuthFieldConfig(
+                    label = stringResource(R.string.nickname),
+                    value = loginState.value,
+                    onValueChange = { loginState.value = it },
+                    fieldType = "login"
+                ),
+                AuthFieldConfig(
+                    label = stringResource(R.string.email),
+                    value = emailState.value,
+                    onValueChange = { emailState.value = it },
+                    fieldType = "email"
+                ),
+                AuthFieldConfig(
+                    label = stringResource(R.string.password),
+                    value = passwordState.value,
+                    onValueChange = { passwordState.value = it },
+                    fieldType = "password"
+                )
             ),
-            AuthFieldConfig(
-                label = stringResource(R.string.email),
-                value = emailState.value,
-                onValueChange = { emailState.value = it },
-                fieldType = "email"
-            ),
-            AuthFieldConfig(
-                label = stringResource(R.string.password),
-                value = passwordState.value,
-                onValueChange = { passwordState.value = it },
-                fieldType = "password"
-            )
-        ),
-        submitButtonText = stringResource(R.string.sign_up),
-        onSubmit = {
-        },
-        showRememberMe = true,
-        rememberMeValue = false,
-        onRememberMeChange = {
+            submitButtonText = stringResource(R.string.sign_up),
+            onSubmit = {
+            },
+            showRememberMe = true,
+            rememberMeValue = false,
+            onRememberMeChange = {
 
-        },
-        navigationText = stringResource(R.string.reg_nav_text),
-        onNavigationTextClick = {
+            },
+            navigationText = stringResource(R.string.reg_nav_text),
+            onNavigationTextClick = {
 
-        },
-        signText = stringResource(R.string.sign_in)
-    )
+            },
+            signText = stringResource(R.string.sign_in)
+        )
+    }
 }

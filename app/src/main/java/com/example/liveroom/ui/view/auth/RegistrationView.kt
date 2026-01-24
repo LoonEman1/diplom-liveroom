@@ -15,6 +15,7 @@ import androidx.navigation.compose.rememberNavController
 import com.example.liveroom.R
 import com.example.liveroom.data.model.AuthFieldConfig
 import com.example.liveroom.ui.navigation.Screen
+import com.example.liveroom.ui.theme.LiveRoomTheme
 import com.example.liveroom.ui.viewmodel.AuthState
 import com.example.liveroom.ui.viewmodel.AuthViewModel
 import com.example.liveroom.ui.viewmodel.UserViewModel
@@ -112,10 +113,14 @@ fun RegistrationView(navController: NavController, userViewModel: UserViewModel)
     )
 }
 
+/*
 @Preview
 @Composable
 fun PreviewRegistrationView() {
-    val navController = rememberNavController()
-    val userViewModel = hiltViewModel<UserViewModel>()
-    RegistrationView(navController, userViewModel)
+    LiveRoomTheme {
+        val navController = rememberNavController()
+        val userViewModel = hiltViewModel<UserViewModel>()
+        RegistrationView(navController, userViewModel)
+    }
 }
+ */
