@@ -41,4 +41,7 @@
     <string name="invite">Invite</string>
     <string name="generate_token_tab">Generate a token and share it with the user who needs to access the server</string>
     <string name="current_token">Current token:</string>
+    <string name="find_server">Join the server using a token</string>
+    <string name="join">Join!</string>
+    <string name="enter_token">Enter a token to join a server</string>
 </resources>

@@ -27,6 +27,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -86,7 +87,7 @@ fun LeftNavigation(
 ) {
 
     var showServerDialog by remember { mutableStateOf(false) }
-    var dialogMode by remember { mutableStateOf(ServerDialogMode.CREATE) }
+    var dialogMode by remember { mutableStateOf(DialogMode.CREATE) }
 
     val serverList by serverViewModel.servers.collectAsState()
     val selectedServerId by serverViewModel.selectedServerId.collectAsState()
@@ -112,9 +113,26 @@ fun LeftNavigation(
                     .clip(RoundedCornerShape(24.dp))
                     .background(MaterialTheme.colorScheme.secondary)
                     .clickable {
-                        dialogMode = ServerDialogMode.CREATE
+                        dialogMode = DialogMode.CREATE
                         showServerDialog = true
                         onTabSelected("create_server")
+                        selectedServer = null
+                    },
+                colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface)
+            )
+        }
+
+        item {
+            Image(
+                imageVector = Icons.Filled.Search,
+                contentDescription = "Settings",
+                modifier = Modifier
+                    .size(54.dp)
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(MaterialTheme.colorScheme.secondary)
+                    .clickable {
+                        dialogMode = DialogMode.SEARCH_SERVER
+                        showServerDialog = true
                         selectedServer = null
                     },
                 colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface)
@@ -135,17 +153,17 @@ fun LeftNavigation(
                 serverViewModel = serverViewModel,
                 onEditServer = {
                     showServerDialog = true
-                    dialogMode = ServerDialogMode.EDIT
+                    dialogMode = DialogMode.EDIT
                     selectedServer = server
                 },
                 onDeleteServer = {
                     showServerDialog = true
-                    dialogMode = ServerDialogMode.DELETE
+                    dialogMode = DialogMode.DELETE
                     selectedServer = server
                 },
                 onInviteToServer = {
                     showServerDialog = true
-                    dialogMode = ServerDialogMode.INVITE
+                    dialogMode = DialogMode.CREATE_INVITE
                     selectedServer = server
                 }
             )
@@ -161,7 +179,7 @@ fun LeftNavigation(
         val toastServerDeleted = stringResource(R.string.server_deleted)
         val context = LocalContext.current
 
-        if (dialogMode == ServerDialogMode.INVITE) {
+        if (dialogMode == DialogMode.CREATE_INVITE) {
             InviteDialog(
                 server = selectedServer,
                 onDismiss = {
@@ -170,9 +188,28 @@ fun LeftNavigation(
                 title = stringResource(R.string.invite_to_server),
                 onInvite = {
 
-                }
+                },
+                label = stringResource(R.string.label_enter_nickname),
+                primaryButtonLabel = stringResource(R.string.invite),
+                dialogMode = dialogMode
             )
-        } else {
+
+        } else if(dialogMode == DialogMode.SEARCH_SERVER) {
+            InviteDialog(
+                server = selectedServer,
+                onDismiss = {
+                    showServerDialog =false
+                },
+                title = stringResource(R.string.find_server),
+                label = stringResource(R.string.enter_token),
+                primaryButtonLabel = stringResource(R.string.join),
+                onInvite = {
+
+                },
+                dialogMode = dialogMode
+            )
+        }
+        else {
             ServerDialog(
                 onDismiss = { showServerDialog = false },
                 selectedServer = selectedServer,
@@ -180,7 +217,7 @@ fun LeftNavigation(
                 onConfirmClick = { formData ->
                     when (dialogMode) {
 
-                        ServerDialogMode.CREATE -> {
+                        DialogMode.CREATE -> {
                             val userId = userViewModel.userId.value
                             val token = userViewModel.accessToken.value
 
@@ -210,7 +247,7 @@ fun LeftNavigation(
                             }
                         }
 
-                        ServerDialogMode.EDIT -> {
+                        DialogMode.EDIT -> {
                             val userId = userViewModel.userId.value
                             val token = userViewModel.accessToken.value
                             val serverId = selectedServer?.id
@@ -256,7 +293,7 @@ fun LeftNavigation(
                             }
                         }
 
-                        ServerDialogMode.DELETE -> {
+                        DialogMode.DELETE -> {
                             val userId = userViewModel.userId.value
                             val token = userViewModel.accessToken.value
                             val currentServer = selectedServer
@@ -284,7 +321,8 @@ fun LeftNavigation(
                                 }
                             }
                         }
-                        ServerDialogMode.INVITE -> Unit
+                        DialogMode.SEARCH_SERVER -> Unit
+                        DialogMode.CREATE_INVITE  -> Unit
                     }
                 },
                 isError = isErrorInDialog
