@@ -39,6 +39,9 @@ fun LoginView(navController: NavController, userViewModel: UserViewModel) {
     val context = LocalContext.current
     val errorMessage = stringResource(R.string.auth_error)
 
+    val usernameError by viewModel.usernameError.collectAsState()
+    val passwordError by viewModel.passwordError.collectAsState()
+
     LaunchedEffect(loginState) {
         when (loginState) {
             is AuthState.Success -> {
@@ -74,13 +77,15 @@ fun LoginView(navController: NavController, userViewModel: UserViewModel) {
                 label = stringResource(R.string.nickname),
                 value = usernameState,
                 onValueChange = { viewModel.setUsernameValue(it) },
-                fieldType = "username"
+                fieldType = "username",
+                isError = usernameError
             ),
             AuthFieldConfig(
                 label = stringResource(R.string.password),
                 value = passwordState,
                 onValueChange = { viewModel.setPasswordValue(it) },
-                fieldType = "password"
+                fieldType = "password",
+                isError = passwordError
             )
         ),
         submitButtonText = stringResource(R.string.sign_in),

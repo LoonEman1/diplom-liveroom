@@ -40,8 +40,9 @@ fun MainView(navController: NavController, userViewModel: UserViewModel, serverV
     val userId = userViewModel.userId.collectAsState()
     val accessToken = userViewModel.accessToken.collectAsState()
 
-    LaunchedEffect(userId) {
-        serverViewModel.getServers(userId.value)
+    LaunchedEffect(accessToken)
+    {
+        if(serverViewModel.servers.value.isEmpty()) serverViewModel.getServers(userId.value)
     }
 
     Row(

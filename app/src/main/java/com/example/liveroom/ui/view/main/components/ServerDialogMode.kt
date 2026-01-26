@@ -1,8 +1,9 @@
 package com.example.liveroom.ui.view.main.components
 
-enum class ServerDialogMode {
+enum class DialogMode {
     CREATE,
     EDIT,
     DELETE,
-    INVITE
+    SEARCH_SERVER,
+    CREATE_INVITE
 }

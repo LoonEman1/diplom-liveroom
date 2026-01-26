@@ -56,19 +56,19 @@ import com.example.liveroom.ui.viewmodel.ServerViewModel
 fun ServerDialog(
     onDismiss: () -> Unit,
     onConfirmClick:(server : ServerFormData) -> Unit,
-    dialogMode: ServerDialogMode,
+    dialogMode: DialogMode,
     selectedServer : Server?,
     isError : Boolean = false
 ) {
     var serverName by remember { mutableStateOf("") }
 
-    val previousServerName = if (selectedServer != null && dialogMode == ServerDialogMode.EDIT) {
+    val previousServerName = if (selectedServer != null && dialogMode == DialogMode.EDIT) {
         selectedServer.name
     } else null
     if(previousServerName != null) serverName = previousServerName
 
     val initialImageUrl = when(dialogMode) {
-        ServerDialogMode.EDIT -> {
+        DialogMode.EDIT -> {
             selectedServer?.avatarUrl?.let {
                 AppConfig.IMAGE_BASE_URL + it
             }
@@ -79,27 +79,27 @@ fun ServerDialog(
     var imageModel : Any? by remember { mutableStateOf(initialImageUrl) }
 
     val server = when (dialogMode) {
-        ServerDialogMode.CREATE -> null
-        ServerDialogMode.EDIT -> "${stringResource(R.string.server)} ${selectedServer?.name}"
-        ServerDialogMode.DELETE -> "${stringResource(R.string.server)} ${selectedServer?.name}"
+        DialogMode.CREATE -> null
+        DialogMode.EDIT -> "${stringResource(R.string.server)} ${selectedServer?.name}"
+        DialogMode.DELETE -> "${stringResource(R.string.server)} ${selectedServer?.name}"
         else -> "unknown"
     }
 
     val title = when (dialogMode){
-        ServerDialogMode.CREATE -> stringResource(R.string.create_new_server)
-        ServerDialogMode.EDIT -> stringResource(R.string.edit_server)
-        ServerDialogMode.DELETE -> stringResource(R.string.delete_server)
+        DialogMode.CREATE -> stringResource(R.string.create_new_server)
+        DialogMode.EDIT -> stringResource(R.string.edit_server)
+        DialogMode.DELETE -> stringResource(R.string.delete_server)
         else -> "unknown"
     }
 
     val showAsyncImage = when(dialogMode) {
-        ServerDialogMode.CREATE, ServerDialogMode.EDIT -> true
-        ServerDialogMode.DELETE -> false
+        DialogMode.CREATE, DialogMode.EDIT -> true
+        DialogMode.DELETE -> false
         else -> true
     }
 
     val subTitle = when(dialogMode) {
-        ServerDialogMode.DELETE ->{
+        DialogMode.DELETE ->{
             stringResource(R.string.confirm_delete_server) + " ${selectedServer?.name}"
         }
         else -> null
@@ -217,9 +217,9 @@ fun ServerDialog(
                 )
 
                 val string = when (dialogMode) {
-                    ServerDialogMode.CREATE -> stringResource(R.string.create)
-                    ServerDialogMode.EDIT -> stringResource(R.string.edit)
-                    ServerDialogMode.DELETE -> stringResource(R.string.delete)
+                    DialogMode.CREATE -> stringResource(R.string.create)
+                    DialogMode.EDIT -> stringResource(R.string.edit)
+                    DialogMode.DELETE -> stringResource(R.string.delete)
                     else -> "unknown"
                 }
                 PrimaryButton(
@@ -253,7 +253,10 @@ fun InviteDialog(
     server : Server?,
     onDismiss: () -> Unit,
     title : String,
-    onInvite: () -> Unit
+    onInvite: () -> Unit,
+    label :  String,
+    primaryButtonLabel: String,
+    dialogMode: DialogMode
 ) {
     var selectedTab by remember { mutableStateOf(InviteTab.USERNAME) }
     var nickname by remember { mutableStateOf("") }
@@ -277,46 +280,71 @@ fun InviteDialog(
                 textAlign = TextAlign.Center
             )
 
-            TabRow(
-                selectedTabIndex = selectedTab.ordinal,
-                containerColor = MaterialTheme.colorScheme.secondary,
-                contentColor = MaterialTheme.colorScheme.onSurface
-            ) {
-                InviteTab.entries.forEachIndexed { index, tab ->
-                    Tab(
-                       selected = selectedTab == tab,
-                        onClick = {
-                            selectedTab = tab
-                        },
-                        text = {
-                            Text(
-                                text = when (tab) {
-                                    InviteTab.USERNAME -> stringResource(R.string.invite_by_nickname)
-                                    InviteTab.GENERATE -> stringResource(R.string.generate_token)
-                                },
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                    )
+            if (dialogMode == DialogMode.CREATE_INVITE) {
+                TabRow(
+                    selectedTabIndex = selectedTab.ordinal,
+                    containerColor = MaterialTheme.colorScheme.secondary,
+                    contentColor = MaterialTheme.colorScheme.onSurface
+                ) {
+                    InviteTab.entries.forEachIndexed { index, tab ->
+                        Tab(
+                            selected = selectedTab == tab,
+                            onClick = {
+                                selectedTab = tab
+                            },
+                            text = {
+                                Text(
+                                    text = when (tab) {
+                                        InviteTab.USERNAME -> stringResource(R.string.invite_by_nickname)
+                                        InviteTab.GENERATE -> stringResource(R.string.generate_token)
+                                    },
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        )
+                    }
+                }
+
+                when (selectedTab) {
+                    InviteTab.USERNAME -> {
+                        EnterTheValueTab(
+                            onInvite, onNicknameChange = { it ->
+                                nickname = it
+                            },
+                            nickname,
+                            label = label,
+                            primaryButtonLabel = primaryButtonLabel
+                        )
+                    }
+
+                    InviteTab.GENERATE -> {
+                        GenerateTokenTab(onGenerate = onInvite)
+                    }
                 }
             }
-
-            when(selectedTab) {
-                InviteTab.USERNAME -> {
-                    InviteByUsernameTab(onInvite, onNicknameChange = {it ->
+            else if (dialogMode == DialogMode.SEARCH_SERVER) {
+                EnterTheValueTab(
+                    onSubmit = onInvite,
+                    onNicknameChange = { it ->
                         nickname = it
-                    }, nickname)
-                }
-                InviteTab.GENERATE -> {
-                    GenerateTokenTab(onGenerate = onInvite)
-                }
+                    },
+                    value = nickname,
+                    label = label,
+                    primaryButtonLabel = primaryButtonLabel
+                )
             }
         }
     }
 }
 
 @Composable
-fun InviteByUsernameTab(onSubmit: () -> Unit, onNicknameChange : (String) -> Unit, nickname : String) {
+fun EnterTheValueTab(
+    onSubmit: () -> Unit,
+    onNicknameChange : (String) -> Unit,
+    value : String,
+    label : String,
+    primaryButtonLabel : String
+    ) {
 
     Column(
         modifier = Modifier
@@ -329,15 +357,15 @@ fun InviteByUsernameTab(onSubmit: () -> Unit, onNicknameChange : (String) -> Uni
         )
         Spacer(modifier = Modifier.height(6.dp))
         CustomTextField(
-            value = nickname,
+            value = value,
             onValueChange = { onNicknameChange(it) },
-            label = stringResource(R.string.label_enter_nickname),
+            label = label,
             modifier = Modifier.fillMaxWidth(),
-            isError = nickname.isBlank()
+            isError = value.isBlank()
         )
         PrimaryButton(
             onClick = onSubmit,
-            text = stringResource(R.string.invite)
+            text = primaryButtonLabel
         )
     }
 }
@@ -403,7 +431,10 @@ fun PreviewInviteDialog() {
             title = "Create invite token, or invite user by nickname",
             onInvite = {
 
-            }
+            },
+            label = "test",
+            primaryButtonLabel = "test",
+            dialogMode = DialogMode.CREATE_INVITE
         )
     }
 }
