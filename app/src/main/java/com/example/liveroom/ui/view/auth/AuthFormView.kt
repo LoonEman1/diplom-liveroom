@@ -3,6 +3,7 @@ package com.example.liveroom.ui.view.auth
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -10,6 +11,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -48,6 +51,7 @@ import com.example.liveroom.ui.components.PrimaryButton
 import com.example.liveroom.ui.navigation.Screen
 import com.example.liveroom.ui.theme.LiveRoomTheme
 import com.example.liveroom.ui.theme.linkTextColor
+import com.example.liveroom.util.ValidationError
 
 @Composable
 fun AuthTextField(
@@ -55,7 +59,8 @@ fun AuthTextField(
     value: String,
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
-    fieldType: String
+    fieldType: String,
+    error : ValidationError? = null
 ) {
     var showPassword by remember { mutableStateOf(false) }
 
@@ -64,12 +69,12 @@ fun AuthTextField(
         onValueChange = onValueChange,
         label = label,
         modifier = modifier.padding(horizontal = 16.dp),
-
+        isError = error != null,
         leadingIcon = {
             when (fieldType) {
-                "username" -> Icon(Icons.Default.Person, contentDescription = "Login", tint = androidx.compose.ui.graphics.Color.Gray)
-                "email" -> Icon(Icons.Default.Email, contentDescription = "Email", tint = androidx.compose.ui.graphics.Color.Gray)
-                "password" -> Icon(Icons.Default.Lock, contentDescription = "Password", tint = androidx.compose.ui.graphics.Color.Gray)
+                "username" -> Icon(Icons.Default.Person, contentDescription = "Login", tint = Color.Gray)
+                "email" -> Icon(Icons.Default.Email, contentDescription = "Email", tint = Color.Gray)
+                "password" -> Icon(Icons.Default.Lock, contentDescription = "Password", tint = Color.Gray)
             }
         },
 
@@ -102,6 +107,16 @@ fun AuthTextField(
             onAny = { }
         )
     )
+
+    if (error != null) {
+        Text(
+            text = stringResource(error.errorResId),
+            color = Color.Red,
+            fontSize = 12.sp,
+            modifier = Modifier
+                .padding(horizontal = 16.dp, vertical = 4.dp)
+        )
+    }
 }
 
 
@@ -140,7 +155,7 @@ fun AuthFormView(
                 )
             }
 
-            Column(
+            LazyColumn(
                 modifier = Modifier
                     .fillMaxWidth()
                     .align(Alignment.TopCenter)
@@ -149,84 +164,95 @@ fun AuthFormView(
                         start = 16.dp,
                         end = 16.dp
                     ),
-                horizontalAlignment = Alignment.CenterHorizontally
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Text(
-                    text = title,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.padding(bottom = 10.dp)
-                )
-                Text(
-                    text = subtitle,
-                    color = Color.Gray,
-                    modifier = Modifier.padding(bottom = 10.dp)
-                )
-                fields.forEach { fieldConfig ->
+                item {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.padding(top = 20.dp)
+                    ) {
+                        Text(
+                            text = title,
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.padding(bottom = 10.dp)
+                        )
+                        Text(
+                            text = subtitle,
+                            color = Color.Gray,
+                            modifier = Modifier.padding(bottom = 10.dp)
+                        )
+                    }
+                }
+                items(fields) { fieldConfig ->
                     AuthTextField(
                         label = fieldConfig.label,
                         value = fieldConfig.value,
                         onValueChange = fieldConfig.onValueChange,
                         fieldType = fieldConfig.fieldType,
-                        modifier = Modifier.padding(vertical = 8.dp)
+                        modifier = Modifier.padding(vertical = 8.dp),
+                        error = fieldConfig.isError
                     )
                 }
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 16.dp, start = 4.dp)
-                ) {
-                    Row(
+                item {
+                    Column(
                         modifier = Modifier
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null
-                            ) {
-                                onRememberMeChange(!rememberMeValue)
-                            }
-                            .align(Alignment.CenterHorizontally),
-                        verticalAlignment = Alignment.CenterVertically
+                            .fillMaxWidth()
+                            .padding(top = 12.dp, start = 4.dp)
                     ) {
-                        if (showRememberMe) {
-                            Checkbox(
-                                checked = rememberMeValue,
-                                onCheckedChange = onRememberMeChange,
-                                modifier = Modifier
-                            )
-                            Text("Remember me")
-                        }
-                    }
-                    Row(
-                        modifier = Modifier.clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
+                        Row(
+                            modifier = Modifier
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null
+                                ) {
+                                    onRememberMeChange(!rememberMeValue)
+                                }
+                                .align(Alignment.CenterHorizontally),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                        onNavigationTextClick()
+                            if (showRememberMe) {
+                                Checkbox(
+                                    checked = rememberMeValue,
+                                    onCheckedChange = onRememberMeChange,
+                                    modifier = Modifier
+                                )
+                                Text("Remember me")
+                            }
                         }
-                            .align(Alignment.CenterHorizontally)
-                    )
-                    {
-                        Text(
-                            navigationText,
-                            modifier = Modifier
-                                .padding(top = 14.dp, end = 4.dp),
-                            color = MaterialTheme.colorScheme.onSurface
+                        Row(
+                            modifier = Modifier.clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                            ) {
+                                onNavigationTextClick()
+                            }
+                                .align(Alignment.CenterHorizontally)
                         )
-                        Text(
-                            signText,
-                            modifier = Modifier
-                                .padding(top = 14.dp),
-                            color = linkTextColor
-                        )
+                        {
+                            Text(
+                                navigationText,
+                                modifier = Modifier
+                                    .padding(top = 12.dp, end = 4.dp),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                signText,
+                                modifier = Modifier
+                                    .padding(top = 12.dp),
+                                color = linkTextColor
+                            )
+                        }
                     }
                 }
-
-                PrimaryButton(
-                    onClick = onSubmit,
-                    text = submitButtonText,
-                    icon = icon
-                )
+                item {
+                    PrimaryButton(
+                        onClick = onSubmit,
+                        text = submitButtonText,
+                        icon = icon
+                    )
+                }
             }
         }
     }

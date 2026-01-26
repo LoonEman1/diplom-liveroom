@@ -44,4 +44,17 @@
     <string name="find_server">Join the server using a token</string>
     <string name="join">Join!</string>
     <string name="enter_token">Enter a token to join a server</string>
+    <string name="error_username_required">Username is required</string>
+    <string name="error_username_too_short">Username must be 3–32 characters</string>
+    <string name="error_username_too_long">Username must be 3–32 characters</string>
+    <string name="error_username_invalid_format">Username can only contain letters, numbers, dots, underscores, and hyphens</string>
+    <string name="error_email_required">Email is required</string>
+    <string name="error_email_too_long">Email is too long</string>
+    <string name="error_email_invalid">Email must be like name@domain.com or name@domain.ru</string>
+    <string name="error_password_required">Password is required</string>
+    <string name="error_password_too_short">Password must be 12–72 characters</string>
+    <string name="error_password_too_long">Password must be 12–72 characters</string>
+    <string name="error_password_invalid">Password must contain letters, numbers, special symbols, and no spaces</string>
+    <string name="error_confirm_password_required">Please confirm your password</string>
+    <string name="error_passwords_do_not_match">Passwords do not match</string>
 </resources>

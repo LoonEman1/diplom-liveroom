@@ -1,5 +1,6 @@
 package com.example.liveroom.ui.view.auth
 
+import android.widget.Toast
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.Icon
@@ -7,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -33,6 +35,23 @@ fun RegistrationView(navController: NavController, userViewModel: UserViewModel)
 
     val registerState by viewModel.registerState.collectAsState()
 
+    val usernameError by viewModel.usernameError.collectAsState()
+    val emailError by viewModel.emailError.collectAsState()
+    val passwordError by viewModel.passwordError.collectAsState()
+    val confirmPasswordError by viewModel.confirmPasswordError.collectAsState()
+    val showToast by viewModel.showToast.collectAsState()
+
+
+    val context = LocalContext.current
+    val errorMessage = stringResource(R.string.auth_error)
+
+    LaunchedEffect(showToast) {
+        showToast?.let { message ->
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+            viewModel.clearToast()
+        }
+    }
+
     LaunchedEffect(registerState) {
         when (registerState) {
             is AuthState.Success -> {
@@ -51,6 +70,11 @@ fun RegistrationView(navController: NavController, userViewModel: UserViewModel)
                 }
             }
             is AuthState.Error -> {
+                Toast.makeText(
+                    context,
+                    errorMessage,
+                    Toast.LENGTH_SHORT
+                ).show()
             }
             else -> {}
         }
@@ -64,25 +88,29 @@ fun RegistrationView(navController: NavController, userViewModel: UserViewModel)
                 label = stringResource(R.string.nickname),
                 value = usernameState,
                 onValueChange = { viewModel.setUsernameValue(it) },
-                fieldType = "username"
+                fieldType = "username",
+                isError = usernameError
             ),
             AuthFieldConfig(
                 label = stringResource(R.string.email),
                 value = emailState,
                 onValueChange = { viewModel.setEmailValue(it) },
-                fieldType = "email"
+                fieldType = "email",
+                isError = emailError
             ),
             AuthFieldConfig(
                 label = stringResource(R.string.password),
                 value = passwordState,
                 onValueChange = { viewModel.setPasswordValue(it) },
-                fieldType = "password"
+                fieldType = "password",
+                isError = passwordError
             ),
             AuthFieldConfig(
                 label = stringResource(R.string.confirm_password),
                 value = confirmPasswordState,
                 onValueChange = { viewModel.setConfirmPasswordValue(it) },
-                fieldType = "password"
+                fieldType = "password",
+                isError = confirmPasswordError
             )
         ),
         submitButtonText = stringResource(R.string.sign_up),
