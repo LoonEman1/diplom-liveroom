@@ -59,4 +59,5 @@
     <string name="error_passwords_do_not_match">Passwords do not match</string>
     <string name="joined_to_server">You have successfully joined to the server</string>
     <string name="token_created">Token successfully created</string>
+    <string name="token_copied">Token successfully copied!</string>
 </resources>

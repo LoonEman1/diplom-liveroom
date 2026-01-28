@@ -2,6 +2,7 @@ package com.example.liveroom.ui.view.main.components
 
 import android.net.Uri
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -37,6 +38,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextAlign
@@ -52,6 +54,7 @@ import com.example.liveroom.di.AppConfig
 import com.example.liveroom.ui.components.CustomTextField
 import com.example.liveroom.ui.components.PrimaryButton
 import com.example.liveroom.ui.theme.LiveRoomTheme
+import com.example.liveroom.ui.theme.linkTextColor
 import com.example.liveroom.ui.viewmodel.ServerViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -388,7 +391,8 @@ fun GenerateTokenTab(
     server : Server?,
     viewModel: ServerViewModel,
 ) {
-    val generatedToken by viewModel.generatedToken.collectAsState()
+    val token by viewModel.getServerToken(server?.id!!).collectAsState()
+
     val clipboardManager = LocalClipboardManager.current
 
     Column(
@@ -400,14 +404,25 @@ fun GenerateTokenTab(
             stringResource(R.string.generate_token_tab),
             color = MaterialTheme.colorScheme.onSurface
         )
-        if(generatedToken != null) {
+        if(token != null) {
             Text(
-                text= stringResource(R.string.current_token) + generatedToken,
+                text= stringResource(R.string.current_token),
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier
                     .align(Alignment.CenterHorizontally)
+            )
+            val context = LocalContext.current
+            val toastText = stringResource(R.string.token_copied)
+            Text(
+                token.toString(),
+                color = linkTextColor,
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
                     .clickable {
-                        clipboardManager.setText(AnnotatedString(generatedToken.toString()))
+                        clipboardManager.setText(AnnotatedString(token.toString()))
+                        Toast.makeText(
+                            context, toastText, Toast.LENGTH_SHORT
+                        ).show()
                     }
             )
         }

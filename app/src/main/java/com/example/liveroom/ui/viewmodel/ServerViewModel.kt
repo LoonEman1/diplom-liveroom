@@ -17,7 +17,11 @@ import com.example.liveroom.data.model.ServerEvent
 import com.example.liveroom.data.remote.dto.Role
 import com.example.liveroom.data.remote.dto.Server
 import com.example.liveroom.data.repository.ServerRepository
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import java.time.Instant
 import javax.inject.Inject
 
@@ -220,7 +224,7 @@ class ServerViewModel @Inject constructor(
     }
 
     fun createServerToken(
-        serverId: Int,
+        serverId : Int,
         onSuccess: () -> Unit = {}
     ) {
         viewModelScope.launch {
@@ -259,5 +263,17 @@ class ServerViewModel @Inject constructor(
                 _isLoading.value = false
             }
         }
+    }
+
+    fun getServerToken(serverId: Int): StateFlow<String?> {
+        return servers.map { serversList ->
+                serversList.find { it.id == serverId }?.serverToken?.token
+            }
+            .distinctUntilChanged()
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.Lazily,
+                initialValue = null
+            )
     }
 }
