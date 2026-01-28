@@ -6,7 +6,8 @@ data class Server(
     val name : String,
     val avatarUrl : String? = null,
     val myRole: Role,
-    val createdAt: String
+    val createdAt: String,
+    val serverToken : Invite.TokenInvite? = null
 )
 
 data class Role(

@@ -40,7 +40,7 @@
     <string name="label_enter_nickname">Enter nickname</string>
     <string name="invite">Invite</string>
     <string name="generate_token_tab">Generate a token and share it with the user who needs to access the server</string>
-    <string name="current_token">Current token:</string>
+    <string name="current_token">Current token: </string>
     <string name="find_server">Join the server using a token</string>
     <string name="join">Join!</string>
     <string name="enter_token">Enter a token to join a server</string>
@@ -57,4 +57,6 @@
     <string name="error_password_invalid">Password must contain letters, numbers, special symbols, and no spaces</string>
     <string name="error_confirm_password_required">Please confirm your password</string>
     <string name="error_passwords_do_not_match">Passwords do not match</string>
+    <string name="joined_to_server">You have successfully joined to the server</string>
+    <string name="token_created">Token successfully created</string>
 </resources>

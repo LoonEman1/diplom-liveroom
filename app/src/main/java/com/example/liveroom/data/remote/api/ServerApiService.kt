@@ -1,6 +1,7 @@
 package com.example.liveroom.data.remote.api
 
 import com.example.liveroom.data.remote.dto.CreateServerRequest
+import com.example.liveroom.data.remote.dto.Invite
 import com.example.liveroom.data.remote.dto.Server
 import com.example.liveroom.data.remote.dto.UpdateServerRequest
 import okhttp3.MultipartBody
@@ -66,4 +67,23 @@ interface ServerApiService {
     suspend fun deleteServer(
         @Path("serverId") serverId : Int
     )
+
+    @POST("api/servers/{serverId}/invites/token")
+    suspend fun createToken(
+        @Path("serverId") serverId : Int
+    ) : Invite.TokenInvite
+
+    @POST("api/servers/{serverId}/invites/user")
+    suspend fun inviteUser(
+        @Path("serverId") serverId : Int,
+        @Body username : String
+    ) : Invite.UserInvite
+
+    @POST("api/me/server-invites/join")
+    suspend fun joinByToken(
+        @Body token : String
+    ) : Server
+
+    @GET("api/me/server-invites")
+    suspend fun getInvites() : List<Invite.UserInvite>
 }

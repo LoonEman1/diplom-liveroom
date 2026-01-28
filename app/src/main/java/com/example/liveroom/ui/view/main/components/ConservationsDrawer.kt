@@ -38,6 +38,7 @@ import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.currentCompositionContext
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -93,6 +94,14 @@ fun LeftNavigation(
     val selectedServerId by serverViewModel.selectedServerId.collectAsState()
     var selectedServer by remember { mutableStateOf<Server?>(null) }
     var isErrorInDialog by remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
+
+    LaunchedEffect(Unit) {
+        serverViewModel.inviteEvents.collect { stringResId ->
+            Toast.makeText(context, stringResId, Toast.LENGTH_SHORT).show()
+        }
+    }
 
     LaunchedEffect(serverList) {
 
@@ -186,12 +195,25 @@ fun LeftNavigation(
                     showServerDialog = false
                 },
                 title = stringResource(R.string.invite_to_server),
-                onInvite = {
-
-                },
                 label = stringResource(R.string.label_enter_nickname),
                 primaryButtonLabel = stringResource(R.string.invite),
-                dialogMode = dialogMode
+                dialogMode = dialogMode,
+                onAction = { action ->
+                    when (action) {
+                        is InviteAction.InviteByUsername -> {
+
+                        }
+                        is InviteAction.GenerateToken -> {
+                            serverViewModel.createServerToken(serverId = selectedServer?.id!!,
+                            )
+                        }
+                        is InviteAction.JoinServer -> {
+
+
+                        }
+                    }
+                },
+                serverViewModel
             )
 
         } else if(dialogMode == DialogMode.SEARCH_SERVER) {
@@ -203,10 +225,10 @@ fun LeftNavigation(
                 title = stringResource(R.string.find_server),
                 label = stringResource(R.string.enter_token),
                 primaryButtonLabel = stringResource(R.string.join),
-                onInvite = {
+                dialogMode = dialogMode,
+                onAction = {
 
-                },
-                dialogMode = dialogMode
+                }
             )
         }
         else {

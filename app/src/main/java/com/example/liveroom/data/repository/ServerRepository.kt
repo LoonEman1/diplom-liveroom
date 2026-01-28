@@ -2,9 +2,11 @@
 package com.example.liveroom.data.repository
 import android.content.Context
 import android.net.Uri
+import android.util.Log
 import androidx.core.net.toUri
 import com.example.liveroom.data.remote.api.ServerApiService
 import com.example.liveroom.data.remote.dto.CreateServerRequest
+import com.example.liveroom.data.remote.dto.Invite
 import com.example.liveroom.data.remote.dto.Server
 import com.example.liveroom.data.remote.dto.UpdateServerRequest
 import com.google.gson.Gson
@@ -180,4 +182,49 @@ class ServerRepository @Inject constructor(
             Result.failure(e)
         }
     } */
+
+
+    suspend fun createServerToken(serverId : Int) : Result<Invite.TokenInvite> {
+        return try {
+            val response : Invite.TokenInvite = apiService.createToken(serverId)
+            Log.d("createServerToken", response.token)
+            Result.success(response)
+        } catch(e : Exception) {
+            Log.e("createServerToken", e.message ?: "unknown error")
+            Result.failure(e)
+        }
+    }
+
+    suspend fun inviteUser(serverId: Int, username : String) : Result<Invite.UserInvite> {
+        return try {
+            val response : Invite.UserInvite = apiService.inviteUser(serverId, username)
+            Log.d("inviteUserToServer", response.inviteId.toString())
+            Result.success(response)
+        } catch(e : Exception) {
+            Log.e("inviteUserToServer", e.message ?: "unknown error")
+            Result.failure(e)
+        }
+    }
+
+    suspend fun joinByToken(token : String) : Result<Server> {
+        return try {
+            val response : Server = apiService.joinByToken(token)
+            Log.d("joinByToken", response.name)
+            Result.success(response)
+        } catch (e : Exception) {
+            Log.e("joinByToken", e.message ?: "unknown error")
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getInvites() : Result<List<Invite.UserInvite>> {
+        return try {
+            val response: List<Invite.UserInvite> = apiService.getInvites()
+            Log.d("getInvites", response.toString())
+            Result.success(response)
+        } catch(e : Exception) {
+            Log.e("getInvites", e.message ?: "unknown  error")
+            Result.failure(e)
+        }
+    }
 }

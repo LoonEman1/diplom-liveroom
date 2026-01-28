@@ -26,6 +26,7 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -35,7 +36,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -58,7 +61,7 @@ fun ServerDialog(
     onConfirmClick:(server : ServerFormData) -> Unit,
     dialogMode: DialogMode,
     selectedServer : Server?,
-    isError : Boolean = false
+    isError : Boolean = false,
 ) {
     var serverName by remember { mutableStateOf("") }
 
@@ -253,10 +256,11 @@ fun InviteDialog(
     server : Server?,
     onDismiss: () -> Unit,
     title : String,
-    onInvite: () -> Unit,
     label :  String,
     primaryButtonLabel: String,
-    dialogMode: DialogMode
+    dialogMode: DialogMode,
+    onAction: (InviteAction) -> Unit,
+    viewModel: ServerViewModel? = null
 ) {
     var selectedTab by remember { mutableStateOf(InviteTab.USERNAME) }
     var nickname by remember { mutableStateOf("") }
@@ -308,7 +312,8 @@ fun InviteDialog(
                 when (selectedTab) {
                     InviteTab.USERNAME -> {
                         EnterTheValueTab(
-                            onInvite, onNicknameChange = { it ->
+                            onSubmit = {onAction(InviteAction.InviteByUsername(server?.id!!, nickname))}
+                            , onNicknameChange = { it ->
                                 nickname = it
                             },
                             nickname,
@@ -318,13 +323,20 @@ fun InviteDialog(
                     }
 
                     InviteTab.GENERATE -> {
-                        GenerateTokenTab(onGenerate = onInvite)
+                        val serverViewModel = if(viewModel == null) {
+                            hiltViewModel<ServerViewModel>()
+                        } else {
+                            viewModel
+                        }
+                        GenerateTokenTab(onGenerate = {onAction(InviteAction.GenerateToken(server?.id!!))},
+                            server = server,
+                            serverViewModel)
                     }
                 }
             }
             else if (dialogMode == DialogMode.SEARCH_SERVER) {
                 EnterTheValueTab(
-                    onSubmit = onInvite,
+                    onSubmit = { onAction(InviteAction.JoinServer(nickname)) },
                     onNicknameChange = { it ->
                         nickname = it
                     },
@@ -373,8 +385,12 @@ fun EnterTheValueTab(
 @Composable
 fun GenerateTokenTab(
     onGenerate: () -> Unit,
-    token : String? = null
+    server : Server?,
+    viewModel: ServerViewModel,
 ) {
+    val generatedToken by viewModel.generatedToken.collectAsState()
+    val clipboardManager = LocalClipboardManager.current
+
     Column(
         modifier = Modifier
             .padding(bottom = 10.dp),
@@ -384,10 +400,15 @@ fun GenerateTokenTab(
             stringResource(R.string.generate_token_tab),
             color = MaterialTheme.colorScheme.onSurface
         )
-        if(token != null) {
+        if(generatedToken != null) {
             Text(
-                text= stringResource(R.string.current_token) + token,
-                color = MaterialTheme.colorScheme.onSurface
+                text= stringResource(R.string.current_token) + generatedToken,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .clickable {
+                        clipboardManager.setText(AnnotatedString(generatedToken.toString()))
+                    }
             )
         }
         Spacer(modifier = Modifier.height(6.dp))
@@ -402,6 +423,12 @@ fun GenerateTokenTab(
 enum class InviteTab {
     USERNAME,
     GENERATE
+}
+
+sealed class InviteAction {
+    data class InviteByUsername(val serverId : Int, val username: String) : InviteAction()
+    data class GenerateToken(val serverId: Int) : InviteAction()
+    data class JoinServer(val serverToken: String) : InviteAction()
 }
 
 @Preview(showBackground = true,
@@ -429,12 +456,12 @@ fun PreviewInviteDialog() {
             server = mockServer,
             onDismiss = {},
             title = "Create invite token, or invite user by nickname",
-            onInvite = {
-
-            },
             label = "test",
             primaryButtonLabel = "test",
-            dialogMode = DialogMode.CREATE_INVITE
+            dialogMode = DialogMode.CREATE_INVITE,
+            {
+
+            }
         )
     }
 }
