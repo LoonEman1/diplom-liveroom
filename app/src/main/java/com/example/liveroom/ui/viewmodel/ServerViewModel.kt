@@ -11,6 +11,7 @@ import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.liveroom.R
+import com.example.liveroom.data.model.ServerEvent
 import com.example.liveroom.data.remote.dto.Role
 import com.example.liveroom.data.remote.dto.Server
 import com.example.liveroom.data.repository.ServerRepository
@@ -42,8 +43,8 @@ class ServerViewModel @Inject constructor(
     private val _selectedServerId = MutableStateFlow<Int?>(null)
     val selectedServerId = _selectedServerId.asStateFlow()
 
-    private val _inviteEvents = MutableSharedFlow<Int>()
-    val inviteEvents = _inviteEvents.asSharedFlow()
+    private val _serverEvents = MutableSharedFlow<ServerEvent>()
+    val serverEvents = _serverEvents.asSharedFlow()
 
     private val _generatedToken = MutableStateFlow<String?>(null)
     val generatedToken = _generatedToken.asStateFlow()
@@ -57,8 +58,7 @@ class ServerViewModel @Inject constructor(
     fun createServer(
         name: String,
         imageUri: Uri?,
-        onSuccess: (server: Server) -> Unit,
-        onError: (message: String) -> Unit
+        onSuccess: () -> Unit
     ) {
         viewModelScope.launch(Dispatchers.IO) {
             _isLoading.value = true
@@ -82,20 +82,21 @@ class ServerViewModel @Inject constructor(
                         _servers.value = _servers.value + serverWithRole
                         _selectedServerId.value = serverWithRole.id
                         _error.value = null
-                        onSuccess(serverWithRole)
+                        _serverEvents.emit(ServerEvent.ServerCreated(serverWithRole))
+                        onSuccess()
                     }
                 }.onFailure { exception ->
                     withContext(Dispatchers.Main) {
                         val errorMsg = exception.message ?: "Failed to create server"
                         _error.value = errorMsg
-                        onError(errorMsg)
+                        _serverEvents.emit(ServerEvent.Error(errorMsg))
                     }
                 }
             } catch (e : Exception) {
                 withContext(Dispatchers.Main) {
                     Log.d("ServerCreation", "Exception : ${e.message}")
                     _error.value = e.message
-                    onError(e.message ?: "Unknown error")
+                    _serverEvents.emit(ServerEvent.Error(e.message ?: "Unknown error"))
                 }
             } finally {
                 _isLoading.value = false
@@ -114,9 +115,11 @@ class ServerViewModel @Inject constructor(
                     _error.value = null
                 }.onFailure { exception ->
                     _error.value = exception.message
+                    _serverEvents.emit(ServerEvent.Error(exception.message ?: "Failed to load servers"))
                 }
             } catch(e : Exception) {
                 _error.value = e.message
+                _serverEvents.emit(ServerEvent.Error(e.message ?: "Failed to load servers"))
             }
             _isLoading.value = false
         }
@@ -129,7 +132,7 @@ class ServerViewModel @Inject constructor(
     fun deleteServer(
         server: Server,
         onSuccess: () -> Unit,
-        onError: (message: String) -> Unit) {
+        onError: () -> Unit) {
         viewModelScope.launch(Dispatchers.IO) {
             _isLoading.value = true
             try {
@@ -142,6 +145,8 @@ class ServerViewModel @Inject constructor(
                     withContext(Dispatchers.Main) {
                         _error.value = null
                         Log.d("ServerDeletion", "Server deleted: ${server.name}")
+                        Log.d("ServerDeletion", "Server deleted: ${server.name}")
+                        _serverEvents.emit(ServerEvent.ServerDeleted(server.name))
                         onSuccess()
                     }
                 }.onFailure { exception ->
@@ -149,12 +154,14 @@ class ServerViewModel @Inject constructor(
                         val errorMessage = exception.message ?: "Failed to delete server"
                         _error.value = errorMessage
                         Log.e("ServerDeletion", "Error: ${errorMessage}")
-                        onError(errorMessage)
+                        _serverEvents.emit(ServerEvent.Error(errorMessage))
+                        onError()
                     }
                 }
             } catch(e : Exception) {
                 _error.value = e.message
                 Log.e("ServerDeletion", "Exception: ${e.message}")
+                _serverEvents.emit(ServerEvent.Error(e.message ?: "Failed to delete server"))
             } finally {
                 _isLoading.value = false
             }
@@ -166,7 +173,7 @@ class ServerViewModel @Inject constructor(
         name: String?,
         imageUri: String?,
         onSuccess: () -> Unit = {},
-        onError: (String) -> Unit = {}
+        onError: () -> Unit = {}
     ) {
         viewModelScope.launch(Dispatchers.IO) {
             _isLoading.value = true
@@ -177,9 +184,7 @@ class ServerViewModel @Inject constructor(
                     val errorMsg = "No changes to update"
                     Log.w("ServerEdit", errorMsg)
                     _error.value = errorMsg
-                    withContext(Dispatchers.Main) {
-                    onError(errorMsg)
-                    }
+                    _serverEvents.emit(ServerEvent.ValidationError(errorMsg))
                     _isLoading.value = false
                     return@launch
                 }
@@ -205,6 +210,7 @@ class ServerViewModel @Inject constructor(
 
                                 Log.d("ServerEdit", "Server updated: old name=${server.name}, new name=${newServer.name}")
                                 Log.d("ServerEdit", "Avatar URL: old=${server.avatarUrl}, new=${newServer.avatarUrl}")
+
                                 newServer
                             } else {
                                 server
@@ -214,27 +220,24 @@ class ServerViewModel @Inject constructor(
 
                     Log.i("ServerEdit", "Edit completed successfully for server $serverId")
                     _error.value = null
-                    withContext(Dispatchers.Main) {
+                    _serverEvents.emit(ServerEvent.ServerEdited(updatedServer.name))
                     onSuccess()
-                    }
                 }
 
                 result.onFailure { exception ->
                     val errorMsg = exception.message ?: "Unknown error during server update"
                     Log.e("ServerEdit", "Repository error: $errorMsg", exception)
                     _error.value = errorMsg
-                    withContext(Dispatchers.Main) {
-                    onError(errorMsg)
-                    }
+                    _serverEvents.emit(ServerEvent.Error(errorMsg))
+                    onError()
                 }
 
             } catch(e: Exception) {
                 val errorMsg = e.message ?: "Unexpected error"
                 Log.e("ServerEdit", "Exception in editServer: $errorMsg", e)
                 _error.value = errorMsg
-                withContext(Dispatchers.Main) {
-                onError(errorMsg)
-                }
+                _serverEvents.emit(ServerEvent.Error(errorMsg))
+                onError()
             } finally {
                 Log.d("ServerEdit", "Setting isLoading to false")
                 _isLoading.value = false
@@ -245,7 +248,6 @@ class ServerViewModel @Inject constructor(
     fun createServerToken(
         serverId: Int,
         onSuccess: () -> Unit = {},
-        onError: (String) -> Unit = {}
     ) {
         viewModelScope.launch(Dispatchers.IO) {
             _isLoading.value = true
@@ -262,16 +264,12 @@ class ServerViewModel @Inject constructor(
                     }
                     _generatedToken.value = token.token
                 }
-                withContext(Dispatchers.Main) {
-                    onSuccess()
-                    _inviteEvents.emit(R.string.token_created)
-                }
+                _serverEvents.emit(ServerEvent.TokenGenerated())
             } catch(e : Exception) {
-                onError(e.message ?: "Unknown Error")
+                _serverEvents.emit(ServerEvent.Error(e.message ?: "Unknown error"))
             } finally {
                 _isLoading.value = false
             }
         }
     }
-
 }

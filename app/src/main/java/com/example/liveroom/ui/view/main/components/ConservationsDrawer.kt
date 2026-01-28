@@ -69,6 +69,7 @@ import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.example.liveroom.R
+import com.example.liveroom.data.model.ServerEvent
 import com.example.liveroom.data.model.ServerFormData
 import com.example.liveroom.data.remote.dto.Role
 import com.example.liveroom.data.remote.dto.Server
@@ -98,8 +99,41 @@ fun LeftNavigation(
     val context = LocalContext.current
 
     LaunchedEffect(Unit) {
-        serverViewModel.inviteEvents.collect { stringResId ->
-            Toast.makeText(context, stringResId, Toast.LENGTH_SHORT).show()
+        serverViewModel.serverEvents.collect { event ->
+            when (event) {
+                is ServerEvent.ServerCreated -> {
+                    Toast.makeText(
+                        context,
+                        "Server created: ${event.server.name}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    showServerDialog = false
+                    isErrorInDialog = false
+                }
+                is ServerEvent.ServerEdited -> {
+                    Toast.makeText(
+                        context,
+                        "Server updated: ${event.serverName}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    showServerDialog = false
+                }
+                is ServerEvent.ServerDeleted -> {
+                    Toast.makeText(context, "Server deleted", Toast.LENGTH_SHORT).show()
+                    showServerDialog = false
+                }
+                is ServerEvent.TokenGenerated -> {
+                    Toast.makeText(context, "Token generated", Toast.LENGTH_SHORT).show()
+                }
+                is ServerEvent.Error -> {
+                    Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
+                    showServerDialog = false
+                }
+                is ServerEvent.ValidationError -> {
+                    Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
+                    isErrorInDialog = true
+                }
+            }
         }
     }
 
@@ -249,17 +283,7 @@ fun LeftNavigation(
                                         name = formData.name,
                                         imageUri = formData.avatarUrl?.toUri(),
                                         onSuccess = {
-                                            isErrorInDialog = false
-                                            Toast.makeText(
-                                                context,
-                                                "$toastCreatedServerText ${formData.name}",
-                                                Toast.LENGTH_SHORT
-                                            ).show()
                                             showServerDialog = false
-                                        },
-                                        onError = { error ->
-                                            Toast.makeText(context, toastError, Toast.LENGTH_SHORT)
-                                                .show()
                                         }
                                     )
                                 } else {
@@ -296,19 +320,9 @@ fun LeftNavigation(
                                         onSuccess = {
                                             Log.i("ServerDialog", "Edit success, closing dialog")
                                             showServerDialog = false
-                                            Toast.makeText(
-                                                context,
-                                                "Server updated: ${formData.name}",
-                                                Toast.LENGTH_SHORT
-                                            ).show()
                                         },
-                                        onError = { error ->
-                                            Log.e("ServerDialog", "Edit error: $error")
-                                            Toast.makeText(
-                                                context,
-                                                "Error: $error",
-                                                Toast.LENGTH_SHORT
-                                            ).show()
+                                        onError = {
+                                            Log.e("ServerDialog", "Edit error:")
                                         }
                                     )
                                 }
@@ -324,17 +338,10 @@ fun LeftNavigation(
                                     serverViewModel.deleteServer(
                                         currentServer,
                                         onSuccess = {
-                                            Toast.makeText(
-                                                context,
-                                                toastServerDeleted,
-                                                Toast.LENGTH_SHORT
-                                            ).show()
                                             isErrorInDialog = false
                                             showServerDialog = false
                                         },
-                                        onError = { error ->
-                                            Toast.makeText(context, toastError, Toast.LENGTH_SHORT)
-                                                .show()
+                                        onError = {
                                         }
                                     )
                                 } else {
