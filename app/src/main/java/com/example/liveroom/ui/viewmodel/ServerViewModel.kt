@@ -61,23 +61,11 @@ class ServerViewModel @Inject constructor(
                 val createResult = withContext(Dispatchers.IO) {
                     serverRepository.createServer(name, imageUri)
                 }
-
                 createResult.onSuccess { createdServer ->
-                    val serverWithRole = createdServer.copy(
-                        myRole = Role(
-                            id = -1,
-                            name = "OWNER",
-                            power = 100,
-                            canManageMembers = true,
-                            canManageConversations = true
-                        ),
-                        createdAt = Instant.now().toString()
-                    )
-
                     Log.d("ServerViewModel", "Server created: ${createdServer.name}")
-                    _servers.value = _servers.value + serverWithRole
-                    _selectedServerId.value = serverWithRole.id
-                    _serverEvents.emit(ServerEvent.ServerCreated(serverWithRole))
+                    _servers.value = _servers.value + createdServer
+                    _selectedServerId.value = createdServer.id
+                    _serverEvents.emit(ServerEvent.ServerCreated(createdServer))
                     onSuccess()
                 }.onFailure { exception ->
                     val errorMsg = exception.message ?: "Failed to create server"
