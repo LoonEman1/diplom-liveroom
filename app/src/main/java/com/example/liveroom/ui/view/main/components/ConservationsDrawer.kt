@@ -1,10 +1,7 @@
 package com.example.liveroom.ui.view.main.components
 
-import android.net.Uri
 import android.util.Log
 import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -13,32 +10,22 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.BasicAlertDialog
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.currentCompositionContext
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -46,36 +33,25 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.toLowerCase
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.Popup
 import androidx.core.net.toUri
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.example.liveroom.R
 import com.example.liveroom.data.model.ServerEvent
-import com.example.liveroom.data.model.ServerFormData
-import com.example.liveroom.data.remote.dto.Role
+import com.example.liveroom.data.model.getErrorMessage
 import com.example.liveroom.data.remote.dto.Server
 import com.example.liveroom.di.AppConfig
-import com.example.liveroom.ui.components.CustomTextField
-import com.example.liveroom.ui.components.PrimaryButton
 import com.example.liveroom.ui.viewmodel.ServerViewModel
 import com.example.liveroom.ui.viewmodel.UserViewModel
 
@@ -96,6 +72,13 @@ fun LeftNavigation(
     var selectedServer by remember { mutableStateOf<Server?>(null) }
     var isErrorInDialog by remember { mutableStateOf(false) }
 
+
+    val serverCreated = stringResource(R.string.server_created)
+    val serverUpdated = stringResource(R.string.server_updated)
+    val serverDeleted = stringResource(R.string.server_deleted)
+    val tokenGenerated = stringResource(R.string.token_created)
+    val userJoined = stringResource(R.string.user_joined)
+    val userInvited = stringResource(R.string.user_invited)
     val context = LocalContext.current
 
     LaunchedEffect(Unit) {
@@ -104,7 +87,7 @@ fun LeftNavigation(
                 is ServerEvent.ServerCreated -> {
                     Toast.makeText(
                         context,
-                        "Server created: ${event.server.name}",
+                        "$serverCreated: ${event.server.name}",
                         Toast.LENGTH_SHORT
                     ).show()
                     showServerDialog = false
@@ -113,29 +96,36 @@ fun LeftNavigation(
                 is ServerEvent.ServerEdited -> {
                     Toast.makeText(
                         context,
-                        "Server updated: ${event.serverName}",
+                        "$serverUpdated ${event.serverName}",
                         Toast.LENGTH_SHORT
                     ).show()
                     showServerDialog = false
                 }
                 is ServerEvent.ServerDeleted -> {
-                    Toast.makeText(context, "Server deleted", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "$serverDeleted ${event.serverName}", Toast.LENGTH_SHORT).show()
                     showServerDialog = false
                 }
                 is ServerEvent.TokenGenerated -> {
-                    Toast.makeText(context, "Token generated", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, tokenGenerated, Toast.LENGTH_SHORT).show()
                 }
                 is ServerEvent.Error -> {
                     Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
                     showServerDialog = false
                 }
                 is ServerEvent.ValidationError -> {
-                    Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, getErrorMessage(context, event.error), Toast.LENGTH_SHORT).show()
                     isErrorInDialog = true
+                }
+                is ServerEvent.UserInvited -> {
+                    Toast.makeText(context, "$userInvited ${event.username}", Toast.LENGTH_SHORT).show()
+                }
+                is ServerEvent.UserJoined -> {
+                    Toast.makeText(context, userJoined, Toast.LENGTH_SHORT).show()
                 }
             }
         }
     }
+
 
     LaunchedEffect(serverList) {
 
@@ -216,10 +206,7 @@ fun LeftNavigation(
 
     if (showServerDialog) {
         val toastText = stringResource(R.string.cannot_be_empty)
-        val toastEditText = stringResource(R.string.editToastText)
-        val toastCreatedServerText = stringResource(R.string.server_created)
         val toastError = stringResource(R.string.cannot_get_user_data)
-        val toastServerDeleted = stringResource(R.string.server_deleted)
         val context = LocalContext.current
 
         if (dialogMode == DialogMode.CREATE_INVITE) {
@@ -235,15 +222,14 @@ fun LeftNavigation(
                 onAction = { action ->
                     when (action) {
                         is InviteAction.InviteByUsername -> {
-
+                            serverViewModel.inviteToServer(serverId = action.serverId, action.username)
                         }
                         is InviteAction.GenerateToken -> {
-                            serverViewModel.createServerToken(serverId = selectedServer?.id!!,
+                            serverViewModel.createServerToken(serverId = action.serverId,
                             )
                         }
                         is InviteAction.JoinServer -> {
-
-
+                            Unit
                         }
                     }
                 },
@@ -254,14 +240,16 @@ fun LeftNavigation(
             InviteDialog(
                 server = selectedServer,
                 onDismiss = {
-                    showServerDialog =false
+                    showServerDialog = false
                 },
                 title = stringResource(R.string.find_server),
                 label = stringResource(R.string.enter_token),
                 primaryButtonLabel = stringResource(R.string.join),
                 dialogMode = dialogMode,
-                onAction = {
-
+                onAction = {action ->
+                    if(action is InviteAction.JoinServer) {
+                        serverViewModel.joinByToken(action.serverToken)
+                    }
                 }
             )
         }

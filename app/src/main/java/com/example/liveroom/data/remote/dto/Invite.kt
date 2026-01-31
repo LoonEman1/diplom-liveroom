@@ -22,3 +22,11 @@ sealed class Invite {
         val expiresAt: String
     ) : Invite()
 }
+
+data class InviteUserRequest(
+    val username: String
+)
+
+data class JoinByTokenRequest(
+    val token : String
+)

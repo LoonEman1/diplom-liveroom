@@ -263,10 +263,10 @@ fun InviteDialog(
     primaryButtonLabel: String,
     dialogMode: DialogMode,
     onAction: (InviteAction) -> Unit,
-    viewModel: ServerViewModel? = null
+    viewModel: ServerViewModel? = null,
 ) {
     var selectedTab by remember { mutableStateOf(InviteTab.USERNAME) }
-    var nickname by remember { mutableStateOf("") }
+    var inputValue by remember { mutableStateOf("") }
 
     BasicAlertDialog(
         onDismissRequest = onDismiss,
@@ -315,11 +315,11 @@ fun InviteDialog(
                 when (selectedTab) {
                     InviteTab.USERNAME -> {
                         EnterTheValueTab(
-                            onSubmit = {onAction(InviteAction.InviteByUsername(server?.id!!, nickname))}
+                            onSubmit = {onAction(InviteAction.InviteByUsername(server?.id!!, inputValue))}
                             , onNicknameChange = { it ->
-                                nickname = it
+                                inputValue = it
                             },
-                            nickname,
+                            inputValue,
                             label = label,
                             primaryButtonLabel = primaryButtonLabel
                         )
@@ -339,11 +339,11 @@ fun InviteDialog(
             }
             else if (dialogMode == DialogMode.SEARCH_SERVER) {
                 EnterTheValueTab(
-                    onSubmit = { onAction(InviteAction.JoinServer(nickname)) },
+                    onSubmit = { onAction(InviteAction.JoinServer(inputValue)) },
                     onNicknameChange = { it ->
-                        nickname = it
+                        inputValue = it
                     },
-                    value = nickname,
+                    value = inputValue,
                     label = label,
                     primaryButtonLabel = primaryButtonLabel
                 )

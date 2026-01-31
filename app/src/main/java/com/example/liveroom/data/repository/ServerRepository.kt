@@ -7,6 +7,8 @@ import androidx.core.net.toUri
 import com.example.liveroom.data.remote.api.ServerApiService
 import com.example.liveroom.data.remote.dto.CreateServerRequest
 import com.example.liveroom.data.remote.dto.Invite
+import com.example.liveroom.data.remote.dto.InviteUserRequest
+import com.example.liveroom.data.remote.dto.JoinByTokenRequest
 import com.example.liveroom.data.remote.dto.Server
 import com.example.liveroom.data.remote.dto.UpdateServerRequest
 import com.google.gson.Gson
@@ -197,7 +199,7 @@ class ServerRepository @Inject constructor(
 
     suspend fun inviteUser(serverId: Int, username : String) : Result<Invite.UserInvite> {
         return try {
-            val response : Invite.UserInvite = apiService.inviteUser(serverId, username)
+            val response : Invite.UserInvite = apiService.inviteUser(serverId, InviteUserRequest(username))
             Log.d("inviteUserToServer", response.inviteId.toString())
             Result.success(response)
         } catch(e : Exception) {
@@ -208,7 +210,7 @@ class ServerRepository @Inject constructor(
 
     suspend fun joinByToken(token : String) : Result<Server> {
         return try {
-            val response : Server = apiService.joinByToken(token)
+            val response : Server = apiService.joinByToken(JoinByTokenRequest(token))
             Log.d("joinByToken", response.name)
             Result.success(response)
         } catch (e : Exception) {
