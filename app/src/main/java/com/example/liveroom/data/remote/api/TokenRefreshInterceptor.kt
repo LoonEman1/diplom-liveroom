@@ -5,6 +5,7 @@ import com.example.liveroom.data.local.TokenManager
 import com.example.liveroom.data.remote.api.AuthService
 import com.example.liveroom.data.remote.dto.RefreshTokenRequest
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.Response
@@ -21,6 +22,7 @@ class TokenRefreshInterceptor @Inject constructor(
 ) : Interceptor {
 
     private var authService: AuthService? = null
+    private val tokenRefreshMutex = Mutex()
 
     override fun intercept(chain: Interceptor.Chain): Response {
         val originalRequest = chain.request()
@@ -47,48 +49,73 @@ class TokenRefreshInterceptor @Inject constructor(
             val refreshToken = tokenManager.getRefreshToken()
             if (refreshToken != null) {
                 try {
-                    if (authService == null) {
-                        val cleanClient = OkHttpClient.Builder()
-                            .connectTimeout(30, TimeUnit.SECONDS)
-                            .readTimeout(30, TimeUnit.SECONDS)
-                            .build()
-
-                        val tempRetrofit = Retrofit.Builder()
-                            .baseUrl("https://nighthunting23.ru/")
-                            .client(cleanClient)
-                            .addConverterFactory(GsonConverterFactory.create())
-                            .build()
-
-                        authService = tempRetrofit.create(AuthService::class.java)
-                    }
-
-                    val result = runBlocking {
-                        authService!!.refreshToken(RefreshTokenRequest(refreshToken))
-                    }
-
                     runBlocking {
-                        tokenManager.saveAccessToken(result.accessToken)
-                        tokenManager.saveRefreshToken(result.refreshToken)
+                        tokenRefreshMutex.lock()
                     }
 
-                    Log.d("TokenRefreshInterceptor", "Token refreshed successfully")
+                    try {
+                        val newAccessToken = tokenManager.getAccessToken()
+                        if (newAccessToken != accessToken) {
+                            Log.d("TokenRefreshInterceptor", "Token already refreshed by another thread")
+                            response.close()
 
-                    response.close()
-
-                    val retryRequest = originalRequest.newBuilder()
-                        .addHeader("Authorization", "Bearer ${result.accessToken}")
-                        .build()
-
-                    return chain.proceed(retryRequest)
-                } catch (e: Exception) {
-                    Log.e("TokenRefreshInterceptor", "Token refresh failed: ${e.message}")
-
-                    if (e is HttpException && e.code() == 401) {
-                        Log.e("TokenRefreshInterceptor", "Refresh token expired, clearing tokens")
-                        runBlocking {
-                            tokenManager.clearToken()
+                            val retryRequest = originalRequest.newBuilder()
+                                .addHeader("Authorization", "Bearer $newAccessToken")
+                                .build()
+                            return chain.proceed(retryRequest)
                         }
+
+                        if (authService == null) {
+                            val cleanClient = OkHttpClient.Builder()
+                                .connectTimeout(30, TimeUnit.SECONDS)
+                                .readTimeout(30, TimeUnit.SECONDS)
+                                .build()
+
+                            val tempRetrofit = Retrofit.Builder()
+                                .baseUrl("https://nighthunting23.ru/")
+                                .client(cleanClient)
+                                .addConverterFactory(GsonConverterFactory.create())
+                                .build()
+
+                            authService = tempRetrofit.create(AuthService::class.java)
+                        }
+
+                        val result = runBlocking {
+                            authService!!.refreshToken(RefreshTokenRequest(refreshToken))
+                        }
+
+                        runBlocking {
+                            tokenManager.saveAccessToken(result.accessToken)
+                            tokenManager.saveRefreshToken(result.refreshToken)
+                        }
+
+                        Log.d("TokenRefreshInterceptor", "Token refreshed successfully")
+
+                        response.close()
+
+                        val retryRequest = originalRequest.newBuilder()
+                            .addHeader("Authorization", "Bearer ${result.accessToken}")
+                            .build()
+
+                        return chain.proceed(retryRequest)
+
+                    } catch (e: Exception) {
+                        Log.e("TokenRefreshInterceptor", "Token refresh failed: ${e.message}")
+
+                        if (e is HttpException && e.code() == 401) {
+                            Log.e("TokenRefreshInterceptor", "Refresh token expired, clearing tokens")
+                            runBlocking {
+                                tokenManager.clearToken()
+                            }
+                        }
+                        return response
+                    } finally {
+                        tokenRefreshMutex.unlock()
                     }
+
+                } catch (e: Exception) {
+                    Log.e("TokenRefreshInterceptor", "Unexpected error: ${e.message}")
+                    return response
                 }
             }
         }

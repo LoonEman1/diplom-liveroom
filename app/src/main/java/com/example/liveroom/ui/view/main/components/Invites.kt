@@ -1,5 +1,6 @@
 package com.example.liveroom.ui.view.main.components
 
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -48,8 +49,7 @@ fun Invites(
     if (invites.isEmpty()) {
         Box(
             modifier = modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.primary),
+                .fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
             Column(
@@ -77,7 +77,8 @@ fun Invites(
                 InviteCard(
                     invite = invite,
                     onAccept = { it ->
-
+                        Log.d("onAccept", "clicked")
+                        serverViewModel?.acceptInvite(it)
                     },
                     onDecline = { it ->
 
@@ -120,7 +121,7 @@ private fun InviteCard(
                 )
                 
                 Text(
-                    text = "${stringResource(R.string.invited_by_user)} ${invite.invitedUsername}",
+                    text = "${stringResource(R.string.invited_by_user)} ${invite.invitedByUsername}",
                     style = MaterialTheme.typography.titleSmall,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -188,16 +189,14 @@ fun InvitesPreview_WithInvites() {
                     inviteId = 1,
                     serverId = 42,
                     serverName = "My Awesome Server",
-                    invitedUserId = 123,
-                    invitedUsername = "friend123",
+                    invitedByUsername = "friend123",
                     expiresAt = "2026-02-05"
                 ),
                 Invite.UserInvite(
                     inviteId = 2,
                     serverId = 69,
                     serverName = "Dev Team",
-                    invitedUserId = 456,
-                    invitedUsername = "devlead",
+                    invitedByUsername = "devlead",
                     expiresAt = "02.03, 23:48"
                 )
             )

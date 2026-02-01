@@ -33,6 +33,7 @@ import com.example.liveroom.ui.view.main.components.LeftNavigation
 import com.example.liveroom.ui.view.main.components.TopDynamicHeader
 import com.example.liveroom.ui.viewmodel.ServerViewModel
 import com.example.liveroom.ui.viewmodel.UserViewModel
+import kotlinx.coroutines.launch
 
 @Composable
 fun MainView(navController: NavController, userViewModel: UserViewModel, serverViewModel: ServerViewModel) {
@@ -40,10 +41,16 @@ fun MainView(navController: NavController, userViewModel: UserViewModel, serverV
 
     val userId = userViewModel.userId.collectAsState()
     val accessToken = userViewModel.accessToken.collectAsState()
+    val invites = serverViewModel.serverInvites.collectAsState()
 
     LaunchedEffect(accessToken)
     {
-        if(serverViewModel.servers.value.isEmpty()) serverViewModel.getServers(userId.value)
+        launch {
+            if (serverViewModel.servers.value.isEmpty()) serverViewModel.getServers(userId.value)
+        }
+        launch {
+            serverViewModel.getInvites()
+        }
     }
 
     Row(
@@ -105,7 +112,7 @@ fun MainView(navController: NavController, userViewModel: UserViewModel, serverV
             ) {
                 when (selectedTab) {
                     "home" -> HomeComponent()
-                    //"invites" -> Invites()
+                    "invites" -> Invites(invites.value, serverViewModel = serverViewModel)
                 }
             }
         }

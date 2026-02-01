@@ -481,12 +481,28 @@ fun ServerContextMenu(
                     }
                 )
             }
-            if(server.myRole.name == "ADMIN") {
+            else if(server.myRole.name == "ADMIN") {
                 Text(
                     text = stringResource(R.string.invite_to_server),
                     color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.clickable {
                         onInvite()
+                    }
+                )
+                Text(
+                    text = stringResource(R.string.leave),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.clickable {
+
+                    }
+                )
+            }
+            else {
+                Text(
+                    text = stringResource(R.string.leave),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.clickable {
+
                     }
                 )
             }

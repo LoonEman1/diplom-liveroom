@@ -88,4 +88,14 @@ interface ServerApiService {
 
     @GET("api/me/server-invites")
     suspend fun getInvites() : List<Invite.UserInvite>
+
+    @POST("api/me/server-invites/{inviteId}/accept")
+    suspend fun acceptInvite (
+        @Path("inviteId") inviteId : Int
+    )
+
+    @POST("api/me/server-invites/{inviteId}/decline")
+    suspend fun declineInvite(
+        @Path("inviteId") inviteId : Int
+    )
 }

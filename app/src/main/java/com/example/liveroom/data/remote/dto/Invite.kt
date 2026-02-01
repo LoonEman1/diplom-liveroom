@@ -17,8 +17,7 @@ sealed class Invite {
         val serverId: Int,
         val serverName: String,
         val type: String = "USER",
-        val invitedUserId: Int,
-        val invitedUsername: String,
+        val invitedByUsername: String,
         val expiresAt: String
     ) : Invite()
 }

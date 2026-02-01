@@ -219,6 +219,17 @@ class ServerRepository @Inject constructor(
         }
     }
 
+    suspend fun acceptInvite(inviteId: Int) : Result<String>{
+        return try {
+            val response = apiService.acceptInvite(inviteId)
+            Log.d("accepted invite", response.toString())
+            Result.success("success")
+        } catch(e : Exception) {
+            Log.d("error accepting invite", e.message.toString())
+            Result.failure(e)
+        }
+    }
+
     suspend fun getInvites() : Result<List<Invite.UserInvite>> {
         return try {
             val response: List<Invite.UserInvite> = apiService.getInvites()

@@ -16,6 +16,7 @@ import android.util.Log
 import com.example.liveroom.data.model.ServerError
 import com.example.liveroom.data.model.ServerEvent
 import com.example.liveroom.data.remote.dto.ApiErrorResponse
+import com.example.liveroom.data.remote.dto.Invite
 import com.example.liveroom.data.remote.dto.Server
 import com.example.liveroom.data.repository.ServerRepository
 import com.example.liveroom.util.getServerErrorMessage
@@ -50,6 +51,9 @@ class ServerViewModel @Inject constructor(
 
     private val _generatedToken = MutableStateFlow<String?>(null)
     val generatedToken = _generatedToken.asStateFlow()
+
+    private val _serverInvites = MutableStateFlow<List<Invite.UserInvite>>(emptyList())
+    val serverInvites: StateFlow<List<Invite.UserInvite>> = _serverInvites.asStateFlow()
 
     fun setSelectedServerId(selectedServerId: Int) {
         _selectedServerId.value = selectedServerId
@@ -306,6 +310,57 @@ class ServerViewModel @Inject constructor(
             }
         }
     }
+
+    fun getInvites() {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    serverRepository.getInvites()
+                }
+                result.onSuccess { invites ->
+                    _serverInvites.value = invites
+                }.onFailure {
+                    _serverEvents.emit(ServerEvent.Error(it.getServerErrorMessage()))
+                }
+            } catch (e : Exception) {
+                _serverEvents.emit(ServerEvent.Error(e.message ?: "Unknown Error"))
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun acceptInvite(invite : Invite.UserInvite) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+            Log.d("acceptInvite", "Starting with inviteId: ${invite.inviteId}")
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    serverRepository.acceptInvite(invite.inviteId)
+                }
+                result.onSuccess {
+                    Log.d("acceptInvite", "Success!")
+                    _serverInvites.update { serversInvite ->
+                        serversInvite.filter {
+                            !(it.inviteId == invite.inviteId || it.serverId == invite.serverId)
+                        }
+                    }
+                }.onFailure {
+                    Log.e("acceptInvite", "Error: ${it.message}")
+                    _serverEvents.emit(ServerEvent.Error(it.getServerErrorMessage()))
+                }
+            } catch (e : Exception) {
+                Log.e("acceptInvite", "Exception: ${e.message}", e)
+                _serverEvents.emit(ServerEvent.Error(e.message ?: "Unknown Error"))
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
 
     fun getServerToken(serverId: Int): StateFlow<String?> {
         return servers.map { serversList ->
