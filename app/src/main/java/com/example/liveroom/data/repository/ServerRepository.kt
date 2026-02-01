@@ -17,6 +17,7 @@ import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
+import retrofit2.HttpException
 import java.io.File
 import javax.inject.Inject
 
@@ -226,6 +227,32 @@ class ServerRepository @Inject constructor(
             Result.success("success")
         } catch(e : Exception) {
             Log.d("error accepting invite", e.message.toString())
+            Result.failure(e)
+        }
+    }
+
+    suspend fun declineInvite(inviteId: Int): Result<Unit> {
+        return try {
+            val response = apiService.declineInvite(inviteId)
+            if (response.isSuccessful) {
+                Result.success(Unit)
+            } else {
+                Result.failure(HttpException(response))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun leaveFromServer(serverId : Int) : Result<Unit> {
+        return try{
+            val response = apiService.leaveFromServer(serverId)
+            if (response.isSuccessful) {
+                Result.success(Unit)
+            } else {
+                Result.failure(HttpException(response))
+            }
+        } catch (e : Exception) {
             Result.failure(e)
         }
     }

@@ -361,6 +361,66 @@ class ServerViewModel @Inject constructor(
         }
     }
 
+    fun declineInvite(invite : Invite.UserInvite) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+            Log.d("declineInvite", "Starting with inviteId: ${invite.inviteId}")
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    serverRepository.declineInvite(invite.inviteId)
+                }
+                result.onSuccess {
+                    Log.d("declineInvite", "Success!")
+                    _serverInvites.update { serversInvite ->
+                        serversInvite.filter {
+                            !(it.inviteId == invite.inviteId || it.serverId == invite.serverId)
+                        }
+                    }
+                }.onFailure {
+                    Log.e("declineInvite", "Error: ${it.message}")
+                    _serverEvents.emit(ServerEvent.Error(it.getServerErrorMessage()))
+                }
+            } catch (e : Exception) {
+                Log.e("declineInvite", "Exception: ${e.message}", e)
+                _serverEvents.emit(ServerEvent.Error(e.message ?: "Unknown Error"))
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+
+    fun leaveFromServer(server : Server) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+            Log.d("leaveFromServer", "Starting leave from server with id: ${server.id}, name : ${server.name}")
+
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    serverRepository.leaveFromServer(server.id)
+                }
+
+                result.onSuccess {
+                    _servers.update { serverList ->
+                        serverList.filter {
+                            (it.id != server.id)
+                        }
+                    }
+                }.onFailure {
+                    Log.e("leaveFromServer", "Error: ${it.message}")
+                    _serverEvents.emit(ServerEvent.Error(it.getServerErrorMessage()))
+                }
+            } catch (e : Exception) {
+                Log.e("leaveFromServer", "Exception: ${e.message}", e)
+                _serverEvents.emit(ServerEvent.Error(e.message ?: "Unknown Error"))
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
 
     fun getServerToken(serverId: Int): StateFlow<String?> {
         return servers.map { serversList ->
@@ -373,6 +433,5 @@ class ServerViewModel @Inject constructor(
                 initialValue = null
             )
     }
-
 
 }

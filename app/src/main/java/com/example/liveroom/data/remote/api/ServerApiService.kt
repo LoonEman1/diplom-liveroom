@@ -9,6 +9,7 @@ import com.example.liveroom.data.remote.dto.UpdateServerRequest
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import okhttp3.ResponseBody
+import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
@@ -97,5 +98,11 @@ interface ServerApiService {
     @POST("api/me/server-invites/{inviteId}/decline")
     suspend fun declineInvite(
         @Path("inviteId") inviteId : Int
-    )
+    ) : Response<Unit>
+
+    @POST("api/servers/{serverId}/leave")
+    suspend fun leaveFromServer(
+        @Path("serverId") serverId : Int
+    ) : Response<Unit>
+
 }

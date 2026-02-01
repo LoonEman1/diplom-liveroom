@@ -20,6 +20,18 @@ sealed class Invite {
         val invitedByUsername: String,
         val expiresAt: String
     ) : Invite()
+
+    fun getFormattedExpiresAt(time : String): String {
+        return try {
+            val instant = java.time.Instant.parse(time)
+            val formatter = java.time.format.DateTimeFormatter
+                .ofPattern("HH:mm, dd.MM")
+                .withZone(java.time.ZoneId.systemDefault())
+            instant.atZone(java.time.ZoneId.systemDefault()).format(formatter)
+        } catch (e: Exception) {
+            time
+        }
+    }
 }
 
 data class InviteUserRequest(

@@ -71,4 +71,6 @@
     <string name="invite_valid">Valid until:</string>
     <string name="invited_by_user">Invited by user:</string>
     <string name="leave">Leave from server</string>
+    <string name="confirm">Confirm</string>
+    <string name="leave_from_server">Do you want to leave the server?</string>
 </resources>

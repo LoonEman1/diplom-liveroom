@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MailOutline
@@ -77,11 +78,12 @@ fun Invites(
                 InviteCard(
                     invite = invite,
                     onAccept = { it ->
-                        Log.d("onAccept", "clicked")
+                        Log.d("onAcceptInvite", "clicked")
                         serverViewModel?.acceptInvite(it)
                     },
                     onDecline = { it ->
-
+                        Log.d("onDeclineInvite", "clicked")
+                        serverViewModel?.declineInvite(it)
                     }
                 )
             }
@@ -129,7 +131,7 @@ private fun InviteCard(
                 )
 
                 Text(
-                    text = stringResource(R.string.invite_valid) + " ${invite.expiresAt}",
+                    text = stringResource(R.string.invite_valid) + " ${invite.getFormattedExpiresAt(invite.expiresAt)}",
                     style = MaterialTheme.typography.titleSmall,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -140,7 +142,7 @@ private fun InviteCard(
             Spacer(modifier = Modifier.width(12.dp))
 
             Row(
-                horizontalArrangement = Arrangement.spacedBy(18.dp)
+                horizontalArrangement = Arrangement.spacedBy(22.dp)
             ) {
                 IconButton(onClick = { onDecline(invite) },
                     modifier = Modifier.size(32.dp)
@@ -157,7 +159,7 @@ private fun InviteCard(
                     modifier = Modifier.size(32.dp)
                 ) {
                     Icon(
-                        Icons.Default.CheckCircle,
+                        Icons.Default.Check,
                         "Accept",
                         tint = ButtonColor,
                         modifier = Modifier.size(32.dp)
