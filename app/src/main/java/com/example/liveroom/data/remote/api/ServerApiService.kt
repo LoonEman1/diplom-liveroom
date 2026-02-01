@@ -1,11 +1,15 @@
 package com.example.liveroom.data.remote.api
 
 import com.example.liveroom.data.remote.dto.CreateServerRequest
+import com.example.liveroom.data.remote.dto.Invite
+import com.example.liveroom.data.remote.dto.InviteUserRequest
+import com.example.liveroom.data.remote.dto.JoinByTokenRequest
 import com.example.liveroom.data.remote.dto.Server
 import com.example.liveroom.data.remote.dto.UpdateServerRequest
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import okhttp3.ResponseBody
+import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
@@ -66,4 +70,39 @@ interface ServerApiService {
     suspend fun deleteServer(
         @Path("serverId") serverId : Int
     )
+
+    @POST("api/servers/{serverId}/invites/token")
+    suspend fun createToken(
+        @Path("serverId") serverId : Int
+    ) : Invite.TokenInvite
+
+    @POST("api/servers/{serverId}/invites/user")
+    suspend fun inviteUser(
+        @Path("serverId") serverId : Int,
+        @Body body : InviteUserRequest
+    ) : Invite.UserInvite
+
+    @POST("api/me/server-invites/join")
+    suspend fun joinByToken(
+        @Body body : JoinByTokenRequest
+    ) : Server
+
+    @GET("api/me/server-invites")
+    suspend fun getInvites() : List<Invite.UserInvite>
+
+    @POST("api/me/server-invites/{inviteId}/accept")
+    suspend fun acceptInvite (
+        @Path("inviteId") inviteId : Int
+    )
+
+    @POST("api/me/server-invites/{inviteId}/decline")
+    suspend fun declineInvite(
+        @Path("inviteId") inviteId : Int
+    ) : Response<Unit>
+
+    @POST("api/servers/{serverId}/leave")
+    suspend fun leaveFromServer(
+        @Path("serverId") serverId : Int
+    ) : Response<Unit>
+
 }

@@ -3,24 +3,31 @@ package com.example.liveroom.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import android.net.Uri
 import android.util.Log
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.liveroom.data.remote.dto.Role
+import com.example.liveroom.data.model.ServerError
+import com.example.liveroom.data.model.ServerEvent
+import com.example.liveroom.data.remote.dto.ApiErrorResponse
+import com.example.liveroom.data.remote.dto.Invite
 import com.example.liveroom.data.remote.dto.Server
 import com.example.liveroom.data.repository.ServerRepository
-import com.example.liveroom.di.AppConfig
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.withContext
-import java.sql.Time
-import java.time.format.DateTimeFormatter
+import com.example.liveroom.util.getServerErrorMessage
+import com.google.gson.Gson
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import retrofit2.HttpException
 import javax.inject.Inject
-import java.time.Instant
 
 @HiltViewModel
 class ServerViewModel @Inject constructor(
@@ -39,49 +46,46 @@ class ServerViewModel @Inject constructor(
     private val _selectedServerId = MutableStateFlow<Int?>(null)
     val selectedServerId = _selectedServerId.asStateFlow()
 
+    private val _serverEvents = MutableSharedFlow<ServerEvent>()
+    val serverEvents = _serverEvents.asSharedFlow()
 
-    fun setSelectedServerId(selectedServerId : Int) {
+    private val _generatedToken = MutableStateFlow<String?>(null)
+    val generatedToken = _generatedToken.asStateFlow()
+
+    private val _serverInvites = MutableStateFlow<List<Invite.UserInvite>>(emptyList())
+    val serverInvites: StateFlow<List<Invite.UserInvite>> = _serverInvites.asStateFlow()
+
+    fun setSelectedServerId(selectedServerId: Int) {
         _selectedServerId.value = selectedServerId
     }
 
     fun createServer(
         name: String,
         imageUri: Uri?,
-        onSuccess: (server: Server) -> Unit,
-        onError: (message: String) -> Unit
+        onSuccess: () -> Unit = {}
     ) {
         viewModelScope.launch {
             _isLoading.value = true
+            _error.value = null
+
             try {
-                val createResult = serverRepository.createServer(name, imageUri)
-
-                createResult.onSuccess { createdServer ->
-                    val serverWithRole = createdServer.copy(
-                        myRole = Role(
-                            id = -1,
-                            name = "OWNER",
-                            power = 100,
-                            canManageMembers = true,
-                            canManageConversations = true
-                        ),
-                        createdAt = Instant.now().toString()
-                    )
-
-                    Log.d("serverCreation", "Server created: ${createdServer.name}")
-                    _servers.value = _servers.value + serverWithRole
-                    _selectedServerId.value = serverWithRole.id
-                    _error.value = null
-
-                    onSuccess(serverWithRole)
-                }.onFailure { exception ->
-                    val errorMsg = exception.message ?: "Failed to create server"
-                    _error.value = errorMsg
-                    onError(errorMsg)
+                val createResult = withContext(Dispatchers.IO) {
+                    serverRepository.createServer(name, imageUri)
                 }
-            } catch (e : Exception) {
-                Log.d("ServerCreation", "Exception : ${e.message}")
-                _error.value = e.message
-                onError(e.message ?: "Unknown error")
+                createResult.onSuccess { createdServer ->
+                    Log.d("ServerViewModel", "Server created: ${createdServer.name}")
+                    _servers.value = _servers.value + createdServer
+                    _selectedServerId.value = createdServer.id
+                    _serverEvents.emit(ServerEvent.ServerCreated(createdServer))
+                    onSuccess()
+                }.onFailure { exception ->
+                    _serverEvents.emit(ServerEvent.Error(exception.getServerErrorMessage()))
+                }
+            } catch (e: Exception) {
+                Log.e("ServerViewModel", "Exception creating server: ${e.message}", e)
+                val errorMsg = e.message ?: "Unknown error"
+                _error.value = errorMsg
+                _serverEvents.emit(ServerEvent.Error(errorMsg))
             } finally {
                 _isLoading.value = false
             }
@@ -89,21 +93,30 @@ class ServerViewModel @Inject constructor(
     }
 
     fun getServers(userId: Int?) {
-        if(userId == null) return
+        if (userId == null) return
+
         viewModelScope.launch {
             _isLoading.value = true
+            _error.value = null
+
             try {
-                val result = serverRepository.getServers(userId)
+                val result = withContext(Dispatchers.IO) {
+                    serverRepository.getServers(userId)
+                }
+
                 result.onSuccess { servers ->
                     _servers.value = servers
-                    _error.value = null
                 }.onFailure { exception ->
-                    _error.value = exception.message
+                    _serverEvents.emit(ServerEvent.Error(exception.getServerErrorMessage()))
                 }
-            } catch(e : Exception) {
-                _error.value = e.message
+            } catch (e: Exception) {
+                Log.e("ServerViewModel", "Exception loading servers: ${e.message}", e)
+                val errorMsg = e.message ?: "Failed to load servers"
+                _error.value = errorMsg
+                _serverEvents.emit(ServerEvent.Error(errorMsg))
+            } finally {
+                _isLoading.value = false
             }
-            _isLoading.value = false
         }
     }
 
@@ -113,29 +126,37 @@ class ServerViewModel @Inject constructor(
 
     fun deleteServer(
         server: Server,
-        onSuccess: () -> Unit,
-        onError: (message: String) -> Unit) {
+        onSuccess: () -> Unit = {},
+        onError: () -> Unit = {}
+    ) {
         viewModelScope.launch {
             _isLoading.value = true
+            _error.value = null
+
             try {
-                val result = serverRepository.deleteServer(server.id)
+                val result = withContext(Dispatchers.IO) {
+                    serverRepository.deleteServer(server.id)
+                }
+
                 result.onSuccess {
                     _servers.value = _servers.value.filter { it.id != server.id }
-                    if(_selectedServerId.value == server.id) {
-                        _selectedServerId.value = _servers.value.firstOrNull()?.id ?: -1
+                    if (_selectedServerId.value == server.id) {
+                        _selectedServerId.value = _servers.value.firstOrNull()?.id
                     }
-                    _error.value = null
-                    Log.d("ServerDeletion", "Server deleted: ${server.name}")
+
+                    Log.d("ServerViewModel", "Server deleted: ${server.name}")
+                    _serverEvents.emit(ServerEvent.ServerDeleted(server.name))
                     onSuccess()
                 }.onFailure { exception ->
-                    val errorMessage = exception.message ?: "Failed to delete server"
-                    _error.value = errorMessage
-                    Log.e("ServerDeletion", "Error: ${errorMessage}")
-                    onError(errorMessage)
+                    _serverEvents.emit(ServerEvent.Error(exception.getServerErrorMessage()))
+                    onError()
                 }
-            } catch(e : Exception) {
-                _error.value = e.message
-                Log.e("ServerDeletion", "Exception: ${e.message}")
+            } catch (e: Exception) {
+                Log.e("ServerViewModel", "Exception deleting server: ${e.message}", e)
+                val errorMsg = e.message ?: "Failed to delete server"
+                _error.value = errorMsg
+                _serverEvents.emit(ServerEvent.Error(errorMsg))
+                onError()
             } finally {
                 _isLoading.value = false
             }
@@ -147,81 +168,283 @@ class ServerViewModel @Inject constructor(
         name: String?,
         imageUri: String?,
         onSuccess: () -> Unit = {},
-        onError: (String) -> Unit = {}
+        onError: () -> Unit = {}
     ) {
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch {
             _isLoading.value = true
-            Log.d("ServerEdit", "Starting edit: serverId=$serverId, name=$name, imageUri=$imageUri")
+            _error.value = null
 
             try {
                 if (name.isNullOrBlank() && imageUri.isNullOrBlank()) {
                     val errorMsg = "No changes to update"
-                    Log.w("ServerEdit", errorMsg)
                     _error.value = errorMsg
-                    withContext(Dispatchers.Main) {
-                    onError(errorMsg)
-                    }
+                    _serverEvents.emit(ServerEvent.ValidationError(ServerError.NoChangesToUpdate))
                     _isLoading.value = false
                     return@launch
                 }
 
-                Log.d("ServerEdit", "Input validation passed")
-
-                val result = serverRepository.updateServer(serverId, name, imageUri)
+                val result = withContext(Dispatchers.IO) {
+                    serverRepository.updateServer(serverId, name, imageUri)
+                }
 
                 result.onSuccess { updatedServer ->
-                    Log.d("ServerEdit", "Repository call successful")
-
                     _servers.update { currentList ->
-                        Log.d("ServerEdit", "Updating local state, current server count: ${currentList.size}")
-
                         currentList.map { server ->
                             if (server.id == serverId) {
-                                Log.d("ServerEdit", "Found server to update: ${server.name}")
-
-                                val newServer = server.copy(
+                                server.copy(
                                     name = updatedServer.name,
                                     avatarUrl = updatedServer.avatarUrl ?: server.avatarUrl
                                 )
-
-                                Log.d("ServerEdit", "Server updated: old name=${server.name}, new name=${newServer.name}")
-                                Log.d("ServerEdit", "Avatar URL: old=${server.avatarUrl}, new=${newServer.avatarUrl}")
-                                newServer
                             } else {
                                 server
                             }
                         }
                     }
 
-                    Log.i("ServerEdit", "Edit completed successfully for server $serverId")
-                    _error.value = null
-                    withContext(Dispatchers.Main) {
+                    Log.i("ServerViewModel", "Server edited successfully: $serverId")
+                    _serverEvents.emit(ServerEvent.ServerEdited(updatedServer.name))
                     onSuccess()
-                    }
+                }.onFailure { exception ->
+                    _serverEvents.emit(ServerEvent.Error(exception.getServerErrorMessage()))
+                    onError()
                 }
-
-                result.onFailure { exception ->
-                    val errorMsg = exception.message ?: "Unknown error during server update"
-                    Log.e("ServerEdit", "Repository error: $errorMsg", exception)
-                    _error.value = errorMsg
-                    withContext(Dispatchers.Main) {
-                    onError(errorMsg)
-                    }
-                }
-
-            } catch(e: Exception) {
-                val errorMsg = e.message ?: "Unexpected error"
-                Log.e("ServerEdit", "Exception in editServer: $errorMsg", e)
+            } catch (e: Exception) {
+                Log.e("ServerViewModel", "Exception editing server: ${e.message}", e)
+                val errorMsg = e.message ?: "Failed to update server"
                 _error.value = errorMsg
-                withContext(Dispatchers.Main) {
-                onError(errorMsg)
-                }
+                _serverEvents.emit(ServerEvent.Error(errorMsg))
+                onError()
             } finally {
-                Log.d("ServerEdit", "Setting isLoading to false")
                 _isLoading.value = false
             }
         }
     }
 
+    fun createServerToken(
+        serverId : Int,
+        onSuccess: () -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    serverRepository.createServerToken(serverId)
+                }
+
+                result.onSuccess { token ->
+                    _servers.update { servers ->
+                        servers.map { server ->
+                            if (server.id == serverId) {
+                                server.copy(serverToken = token)
+                            } else {
+                                server
+                            }
+                        }
+                    }
+                    _generatedToken.value = token.token
+                    _serverEvents.emit(ServerEvent.TokenGenerated)
+                    onSuccess()
+                }.onFailure { exception ->
+                    _serverEvents.emit(ServerEvent.Error(exception.getServerErrorMessage()))
+                }
+            } catch (e: Exception) {
+                Log.e("ServerViewModel", "Exception creating token: ${e.message}", e)
+                val errorMsg = e.message ?: "Unknown error"
+                _error.value = errorMsg
+                _serverEvents.emit(ServerEvent.Error(errorMsg))
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun inviteToServer(
+        serverId :  Int, username : String?,
+        onSuccess: () -> Unit
+    ) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+            try {
+                if(!username.isNullOrBlank()) {
+                    val result = withContext(Dispatchers.IO) {
+                        serverRepository.inviteUser(serverId, username)
+                    }
+
+                    result.onSuccess {
+                        _serverEvents.emit(ServerEvent.UserInvited(username))
+                        onSuccess()
+                    }
+
+                    result.onFailure { exception ->
+                        _serverEvents.emit(ServerEvent.Error(exception.getServerErrorMessage()))
+                    }
+                } else
+                    _serverEvents.emit(ServerEvent.ValidationError(ServerError.EmptyUsername))
+            } catch(e : Exception) {
+                _serverEvents.emit(ServerEvent.Error(e.message ?: "Unknown error"))
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun joinByToken(
+        token : String?,
+        onSuccess: () -> Unit,
+    ) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+            try {
+                if(!token.isNullOrBlank()) {
+                    val result = withContext(Dispatchers.IO) {
+                        serverRepository.joinByToken(token)
+                    }
+                    result.onSuccess { newServer ->
+                        if (_servers.value.none { it.id == newServer.id }) {
+                            _servers.value += newServer
+                            _serverEvents.emit(ServerEvent.UserJoined)
+                        } else {
+                            _serverEvents.emit(ServerEvent.AlreadyJoined(newServer.name))
+                        }
+                        onSuccess()
+                    }
+                    result.onFailure { exception ->
+                        _serverEvents.emit(ServerEvent.Error(exception.getServerErrorMessage()))
+                    }
+                } else _serverEvents.emit(ServerEvent.ValidationError(ServerError.TokenIsEmpty))
+            } catch (e : Exception) {
+                _serverEvents.emit(ServerEvent.Error(e.message ?: "Unknown error"))
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun getInvites() {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    serverRepository.getInvites()
+                }
+                result.onSuccess { invites ->
+                    _serverInvites.value = invites
+                }.onFailure {
+                    _serverEvents.emit(ServerEvent.Error(it.getServerErrorMessage()))
+                }
+            } catch (e : Exception) {
+                _serverEvents.emit(ServerEvent.Error(e.message ?: "Unknown Error"))
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun acceptInvite(invite : Invite.UserInvite) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+            Log.d("acceptInvite", "Starting with inviteId: ${invite.inviteId}")
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    serverRepository.acceptInvite(invite.inviteId)
+                }
+                result.onSuccess {
+                    Log.d("acceptInvite", "Success!")
+                    _serverInvites.update { serversInvite ->
+                        serversInvite.filter {
+                            !(it.inviteId == invite.inviteId || it.serverId == invite.serverId)
+                        }
+                    }
+                }.onFailure {
+                    Log.e("acceptInvite", "Error: ${it.message}")
+                    _serverEvents.emit(ServerEvent.Error(it.getServerErrorMessage()))
+                }
+            } catch (e : Exception) {
+                Log.e("acceptInvite", "Exception: ${e.message}", e)
+                _serverEvents.emit(ServerEvent.Error(e.message ?: "Unknown Error"))
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun declineInvite(invite : Invite.UserInvite) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+            Log.d("declineInvite", "Starting with inviteId: ${invite.inviteId}")
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    serverRepository.declineInvite(invite.inviteId)
+                }
+                result.onSuccess {
+                    Log.d("declineInvite", "Success!")
+                    _serverInvites.update { serversInvite ->
+                        serversInvite.filter {
+                            !(it.inviteId == invite.inviteId || it.serverId == invite.serverId)
+                        }
+                    }
+                }.onFailure {
+                    Log.e("declineInvite", "Error: ${it.message}")
+                    _serverEvents.emit(ServerEvent.Error(it.getServerErrorMessage()))
+                }
+            } catch (e : Exception) {
+                Log.e("declineInvite", "Exception: ${e.message}", e)
+                _serverEvents.emit(ServerEvent.Error(e.message ?: "Unknown Error"))
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+
+    fun leaveFromServer(server : Server) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+            Log.d("leaveFromServer", "Starting leave from server with id: ${server.id}, name : ${server.name}")
+
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    serverRepository.leaveFromServer(server.id)
+                }
+
+                result.onSuccess {
+                    _servers.update { serverList ->
+                        serverList.filter {
+                            (it.id != server.id)
+                        }
+                    }
+                }.onFailure {
+                    Log.e("leaveFromServer", "Error: ${it.message}")
+                    _serverEvents.emit(ServerEvent.Error(it.getServerErrorMessage()))
+                }
+            } catch (e : Exception) {
+                Log.e("leaveFromServer", "Exception: ${e.message}", e)
+                _serverEvents.emit(ServerEvent.Error(e.message ?: "Unknown Error"))
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+
+    fun getServerToken(serverId: Int): StateFlow<String?> {
+        return servers.map { serversList ->
+                serversList.find { it.id == serverId }?.serverToken?.token
+            }
+            .distinctUntilChanged()
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.Lazily,
+                initialValue = null
+            )
+    }
 
 }

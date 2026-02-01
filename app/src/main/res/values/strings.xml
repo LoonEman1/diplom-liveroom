@@ -40,7 +40,7 @@
     <string name="label_enter_nickname">Enter nickname</string>
     <string name="invite">Invite</string>
     <string name="generate_token_tab">Generate a token and share it with the user who needs to access the server</string>
-    <string name="current_token">Current token:</string>
+    <string name="current_token">Current token: </string>
     <string name="find_server">Join the server using a token</string>
     <string name="join">Join!</string>
     <string name="enter_token">Enter a token to join a server</string>
@@ -57,4 +57,21 @@
     <string name="error_password_invalid">Password must contain letters, numbers, special symbols, and no spaces</string>
     <string name="error_confirm_password_required">Please confirm your password</string>
     <string name="error_passwords_do_not_match">Passwords do not match</string>
+    <string name="joined_to_server">You have successfully joined to the server</string>
+    <string name="token_created">Token successfully created</string>
+    <string name="token_copied">Token successfully copied!</string>
+    <string name="server_updated">The server has been updated!</string>
+    <string name="user_invited">The user has been successfully invited!</string>
+    <string name="empty_username">Nickname must not be empty</string>
+    <string name="no_changes_to_update">No changes for update!</string>
+    <string name="token_is_empty">The token is empty!</string>
+    <string name="user_joined">You have successfully connected to the server!</string>
+    <string name="invites">Invites</string>
+    <string name="invites_empty">No pending invitations</string>
+    <string name="invite_valid">Valid until:</string>
+    <string name="invited_by_user">Invited by user:</string>
+    <string name="leave">Leave from server</string>
+    <string name="confirm">Confirm</string>
+    <string name="leave_from_server">Do you want to leave the server?</string>
+    <string name="user_already_joined">The user is already on this server</string>
 </resources>

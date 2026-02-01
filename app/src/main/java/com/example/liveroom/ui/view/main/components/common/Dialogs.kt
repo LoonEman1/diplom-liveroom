@@ -1,7 +1,8 @@
-package com.example.liveroom.ui.view.main.components
+package com.example.liveroom.ui.view.main.components.common
 
 import android.net.Uri
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -26,6 +27,7 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -33,9 +35,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -49,6 +53,7 @@ import com.example.liveroom.di.AppConfig
 import com.example.liveroom.ui.components.CustomTextField
 import com.example.liveroom.ui.components.PrimaryButton
 import com.example.liveroom.ui.theme.LiveRoomTheme
+import com.example.liveroom.ui.theme.linkTextColor
 import com.example.liveroom.ui.viewmodel.ServerViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -58,7 +63,7 @@ fun ServerDialog(
     onConfirmClick:(server : ServerFormData) -> Unit,
     dialogMode: DialogMode,
     selectedServer : Server?,
-    isError : Boolean = false
+    isError : Boolean = false,
 ) {
     var serverName by remember { mutableStateOf("") }
 
@@ -253,13 +258,14 @@ fun InviteDialog(
     server : Server?,
     onDismiss: () -> Unit,
     title : String,
-    onInvite: () -> Unit,
     label :  String,
     primaryButtonLabel: String,
-    dialogMode: DialogMode
+    dialogMode: DialogMode,
+    onAction: (InviteAction) -> Unit,
+    viewModel: ServerViewModel? = null,
 ) {
     var selectedTab by remember { mutableStateOf(InviteTab.USERNAME) }
-    var nickname by remember { mutableStateOf("") }
+    var inputValue by remember { mutableStateOf("") }
 
     BasicAlertDialog(
         onDismissRequest = onDismiss,
@@ -308,27 +314,35 @@ fun InviteDialog(
                 when (selectedTab) {
                     InviteTab.USERNAME -> {
                         EnterTheValueTab(
-                            onInvite, onNicknameChange = { it ->
-                                nickname = it
+                            onSubmit = {onAction(InviteAction.InviteByUsername(server?.id!!, inputValue))}
+                            , onNicknameChange = { it ->
+                                inputValue = it
                             },
-                            nickname,
+                            inputValue,
                             label = label,
                             primaryButtonLabel = primaryButtonLabel
                         )
                     }
 
                     InviteTab.GENERATE -> {
-                        GenerateTokenTab(onGenerate = onInvite)
+                        val serverViewModel = if(viewModel == null) {
+                            hiltViewModel<ServerViewModel>()
+                        } else {
+                            viewModel
+                        }
+                        GenerateTokenTab(onGenerate = {onAction(InviteAction.GenerateToken(server?.id!!))},
+                            server = server,
+                            serverViewModel)
                     }
                 }
             }
             else if (dialogMode == DialogMode.SEARCH_SERVER) {
                 EnterTheValueTab(
-                    onSubmit = onInvite,
+                    onSubmit = { onAction(InviteAction.JoinServer(inputValue)) },
                     onNicknameChange = { it ->
-                        nickname = it
+                        inputValue = it
                     },
-                    value = nickname,
+                    value = inputValue,
                     label = label,
                     primaryButtonLabel = primaryButtonLabel
                 )
@@ -373,8 +387,13 @@ fun EnterTheValueTab(
 @Composable
 fun GenerateTokenTab(
     onGenerate: () -> Unit,
-    token : String? = null
+    server : Server?,
+    viewModel: ServerViewModel,
 ) {
+    val token by viewModel.getServerToken(server?.id!!).collectAsState()
+
+    val clipboardManager = LocalClipboardManager.current
+
     Column(
         modifier = Modifier
             .padding(bottom = 10.dp),
@@ -386,8 +405,24 @@ fun GenerateTokenTab(
         )
         if(token != null) {
             Text(
-                text= stringResource(R.string.current_token) + token,
-                color = MaterialTheme.colorScheme.onSurface
+                text= stringResource(R.string.current_token),
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+            )
+            val context = LocalContext.current
+            val toastText = stringResource(R.string.token_copied)
+            Text(
+                token.toString(),
+                color = linkTextColor,
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .clickable {
+                        clipboardManager.setText(AnnotatedString(token.toString()))
+                        Toast.makeText(
+                            context, toastText, Toast.LENGTH_SHORT
+                        ).show()
+                    }
             )
         }
         Spacer(modifier = Modifier.height(6.dp))
@@ -402,6 +437,12 @@ fun GenerateTokenTab(
 enum class InviteTab {
     USERNAME,
     GENERATE
+}
+
+sealed class InviteAction {
+    data class InviteByUsername(val serverId : Int, val username: String) : InviteAction()
+    data class GenerateToken(val serverId: Int) : InviteAction()
+    data class JoinServer(val serverToken: String) : InviteAction()
 }
 
 @Preview(showBackground = true,
@@ -429,13 +470,73 @@ fun PreviewInviteDialog() {
             server = mockServer,
             onDismiss = {},
             title = "Create invite token, or invite user by nickname",
-            onInvite = {
-
-            },
             label = "test",
             primaryButtonLabel = "test",
-            dialogMode = DialogMode.CREATE_INVITE
+            dialogMode = DialogMode.CREATE_INVITE,
+            {
+
+            }
         )
+    }
+}
+
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ConfirmationDialog(
+    showDialog: Boolean,
+    title: String,
+    message : String? = null,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    if (showDialog) {
+        BasicAlertDialog(
+            onDismissRequest = onDismiss,
+            modifier = Modifier
+                .clip(RoundedCornerShape(14.dp))
+                .background(MaterialTheme.colorScheme.background)
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center
+                )
+                if(message != null) {
+                    Text(
+                        text = message,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        textAlign = TextAlign.Center
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    PrimaryButton(
+                        text = stringResource(R.string.cancel),
+                        onClick = onDismiss,
+                        containerColor = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.weight(1f),
+                        icon = null
+                    )
+
+                    PrimaryButton(
+                        text = stringResource(R.string.confirm),
+                        onClick = onConfirm,
+                        modifier = Modifier.weight(1f),
+                        icon = null
+                    )
+                }
+            }
+        }
     }
 }
 

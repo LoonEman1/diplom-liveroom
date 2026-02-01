@@ -2,9 +2,13 @@
 package com.example.liveroom.data.repository
 import android.content.Context
 import android.net.Uri
+import android.util.Log
 import androidx.core.net.toUri
 import com.example.liveroom.data.remote.api.ServerApiService
 import com.example.liveroom.data.remote.dto.CreateServerRequest
+import com.example.liveroom.data.remote.dto.Invite
+import com.example.liveroom.data.remote.dto.InviteUserRequest
+import com.example.liveroom.data.remote.dto.JoinByTokenRequest
 import com.example.liveroom.data.remote.dto.Server
 import com.example.liveroom.data.remote.dto.UpdateServerRequest
 import com.google.gson.Gson
@@ -13,6 +17,7 @@ import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
+import retrofit2.HttpException
 import java.io.File
 import javax.inject.Inject
 
@@ -180,4 +185,86 @@ class ServerRepository @Inject constructor(
             Result.failure(e)
         }
     } */
+
+
+    suspend fun createServerToken(serverId : Int) : Result<Invite.TokenInvite> {
+        return try {
+            val response : Invite.TokenInvite = apiService.createToken(serverId)
+            Log.d("createServerToken", response.token)
+            Result.success(response)
+        } catch(e : Exception) {
+            Log.e("createServerToken", e.message ?: "unknown error")
+            Result.failure(e)
+        }
+    }
+
+    suspend fun inviteUser(serverId: Int, username : String) : Result<Invite.UserInvite> {
+        return try {
+            val response : Invite.UserInvite = apiService.inviteUser(serverId, InviteUserRequest(username))
+            Log.d("inviteUserToServer", response.inviteId.toString())
+            Result.success(response)
+        } catch(e : Exception) {
+            Log.e("inviteUserToServer", e.message ?: "unknown error")
+            Result.failure(e)
+        }
+    }
+
+    suspend fun joinByToken(token : String) : Result<Server> {
+        return try {
+            val response : Server = apiService.joinByToken(JoinByTokenRequest(token))
+            Log.d("joinByToken", response.name)
+            Result.success(response)
+        } catch (e : Exception) {
+            Log.e("joinByToken", e.message ?: "unknown error")
+            Result.failure(e)
+        }
+    }
+
+    suspend fun acceptInvite(inviteId: Int) : Result<String>{
+        return try {
+            val response = apiService.acceptInvite(inviteId)
+            Log.d("accepted invite", response.toString())
+            Result.success("success")
+        } catch(e : Exception) {
+            Log.d("error accepting invite", e.message.toString())
+            Result.failure(e)
+        }
+    }
+
+    suspend fun declineInvite(inviteId: Int): Result<Unit> {
+        return try {
+            val response = apiService.declineInvite(inviteId)
+            if (response.isSuccessful) {
+                Result.success(Unit)
+            } else {
+                Result.failure(HttpException(response))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun leaveFromServer(serverId : Int) : Result<Unit> {
+        return try{
+            val response = apiService.leaveFromServer(serverId)
+            if (response.isSuccessful) {
+                Result.success(Unit)
+            } else {
+                Result.failure(HttpException(response))
+            }
+        } catch (e : Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getInvites() : Result<List<Invite.UserInvite>> {
+        return try {
+            val response: List<Invite.UserInvite> = apiService.getInvites()
+            Log.d("getInvites", response.toString())
+            Result.success(response)
+        } catch(e : Exception) {
+            Log.e("getInvites", e.message ?: "unknown  error")
+            Result.failure(e)
+        }
+    }
 }

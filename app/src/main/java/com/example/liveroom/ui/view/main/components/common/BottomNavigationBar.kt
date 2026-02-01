@@ -1,10 +1,11 @@
-package com.example.liveroom.ui.view.main.components
+package com.example.liveroom.ui.view.main.components.common
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
@@ -75,18 +76,18 @@ fun BottomNavigationBar(selectedTab: String, onTabSelected: (String) -> Unit) {
 //                }
 //            )
 
-//            NavigationBarItem(
-//                icon = {
-//                    Icon(Icons.Default.Notifications, contentDescription = "Notifications")
-//                },
-//                label = {
-//                    Text("Уведомления", color = MaterialTheme.colorScheme.onSurface)
-//                },
-//                selected = selectedTab == "notifications",
-//                onClick = {
-//                    onTabSelected("notifications")
-//                }
-//            )
+            NavigationBarItem(
+                icon = {
+                    Icon(Icons.Default.Email, contentDescription = "Invites")
+                },
+                label = {
+                    Text(stringResource(R.string.invites), color = MaterialTheme.colorScheme.onSurface)
+                },
+                selected = selectedTab == "invites",
+                onClick = {
+                    onTabSelected("invites")
+                }
+            )
 
             NavigationBarItem(
                 icon = {
