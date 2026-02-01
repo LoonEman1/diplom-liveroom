@@ -297,6 +297,7 @@ class ServerViewModel @Inject constructor(
                         serverRepository.joinByToken(token)
                     }
                     result.onSuccess {
+                        _servers.value += it
                         _serverEvents.emit(ServerEvent.UserJoined)
                     }
                     result.onFailure { exception ->

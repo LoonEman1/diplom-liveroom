@@ -1,4 +1,4 @@
-package com.example.liveroom.ui.view.main.components
+package com.example.liveroom.ui.view.main.components.common
 
 import android.util.Log
 import androidx.compose.foundation.background

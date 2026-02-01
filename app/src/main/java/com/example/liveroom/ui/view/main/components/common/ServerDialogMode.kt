@@ -1,4 +1,4 @@
-package com.example.liveroom.ui.view.main.components
+package com.example.liveroom.ui.view.main.components.common
 
 enum class DialogMode {
     CREATE,

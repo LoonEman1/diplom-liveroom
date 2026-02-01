@@ -1,4 +1,4 @@
-package com.example.liveroom.ui.view.main.components
+package com.example.liveroom.ui.view.main.components.common
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Row
@@ -7,7 +7,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.MailOutline
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
