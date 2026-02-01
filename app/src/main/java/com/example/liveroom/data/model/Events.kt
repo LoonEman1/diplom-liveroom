@@ -13,6 +13,7 @@ sealed class ServerEvent {
     data class Error(val message: String) : ServerEvent()
     data class ValidationError(val error : ServerError) : ServerEvent()
     data class UserInvited(val username: String) : ServerEvent()
+    data class AlreadyJoined(val name: String) : ServerEvent()
 }
 
 

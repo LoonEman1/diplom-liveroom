@@ -22,15 +22,11 @@ fun MainLayout(
 ) {
     var selectedTab by remember { mutableStateOf("home") }
 
-    val userId by userViewModel.userId.collectAsState()
-    LaunchedEffect(userId) {
-        if (userId != null && serverViewModel.servers.value.isEmpty()) {
-            serverViewModel.getServers(userId)
-            serverViewModel.getInvites()
-        }
-    }
-
-    Row(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.secondary)) {
+    Row(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.secondary)
+    ) {
         Box(
             modifier = Modifier
                 .weight(0.15f)

@@ -260,7 +260,10 @@ class ServerViewModel @Inject constructor(
         }
     }
 
-    fun inviteToServer(serverId :  Int, username : String?) {
+    fun inviteToServer(
+        serverId :  Int, username : String?,
+        onSuccess: () -> Unit
+    ) {
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
@@ -272,6 +275,7 @@ class ServerViewModel @Inject constructor(
 
                     result.onSuccess {
                         _serverEvents.emit(ServerEvent.UserInvited(username))
+                        onSuccess()
                     }
 
                     result.onFailure { exception ->
@@ -287,7 +291,10 @@ class ServerViewModel @Inject constructor(
         }
     }
 
-    fun joinByToken(token : String?) {
+    fun joinByToken(
+        token : String?,
+        onSuccess: () -> Unit,
+    ) {
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
@@ -296,9 +303,14 @@ class ServerViewModel @Inject constructor(
                     val result = withContext(Dispatchers.IO) {
                         serverRepository.joinByToken(token)
                     }
-                    result.onSuccess {
-                        _servers.value += it
-                        _serverEvents.emit(ServerEvent.UserJoined)
+                    result.onSuccess { newServer ->
+                        if (_servers.value.none { it.id == newServer.id }) {
+                            _servers.value += newServer
+                            _serverEvents.emit(ServerEvent.UserJoined)
+                        } else {
+                            _serverEvents.emit(ServerEvent.AlreadyJoined(newServer.name))
+                        }
+                        onSuccess()
                     }
                     result.onFailure { exception ->
                         _serverEvents.emit(ServerEvent.Error(exception.getServerErrorMessage()))

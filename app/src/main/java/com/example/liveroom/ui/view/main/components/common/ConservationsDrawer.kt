@@ -48,7 +48,6 @@ fun LeftNavigation(
 ) {
 
     var showServerDialog by remember { mutableStateOf(false) }
-    val showConfirmationDialog by remember { mutableStateOf(false) }
     var dialogMode by remember { mutableStateOf(DialogMode.CREATE) }
 
     val serverList by serverViewModel.servers.collectAsState()
@@ -63,6 +62,7 @@ fun LeftNavigation(
     val tokenGenerated = stringResource(R.string.token_created)
     val userJoined = stringResource(R.string.user_joined)
     val userInvited = stringResource(R.string.user_invited)
+    val userAlreadyOnServer = stringResource(R.string.user_already_joined)
     val context = LocalContext.current
 
     LaunchedEffect(Unit) {
@@ -106,6 +106,9 @@ fun LeftNavigation(
                 is ServerEvent.UserJoined -> {
                     Toast.makeText(context, userJoined, Toast.LENGTH_SHORT).show()
                 }
+                is ServerEvent.AlreadyJoined -> {
+                    Toast.makeText(context, "$userAlreadyOnServer ${event.name}" , Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }
@@ -128,7 +131,7 @@ fun LeftNavigation(
                 modifier = Modifier
                     .size(54.dp)
                     .clip(RoundedCornerShape(24.dp))
-                    .background(MaterialTheme.colorScheme.secondary)
+                    .background(MaterialTheme.colorScheme.background)
                     .clickable {
                         dialogMode = DialogMode.CREATE
                         showServerDialog = true
@@ -146,7 +149,7 @@ fun LeftNavigation(
                 modifier = Modifier
                     .size(54.dp)
                     .clip(RoundedCornerShape(24.dp))
-                    .background(MaterialTheme.colorScheme.secondary)
+                    .background(MaterialTheme.colorScheme.background)
                     .clickable {
                         dialogMode = DialogMode.SEARCH_SERVER
                         showServerDialog = true
@@ -208,11 +211,16 @@ fun LeftNavigation(
                 onAction = { action ->
                     when (action) {
                         is InviteAction.InviteByUsername -> {
-                            serverViewModel.inviteToServer(serverId = action.serverId, action.username)
+                            serverViewModel.inviteToServer(
+                                serverId = action.serverId,
+                                action.username,
+                                onSuccess = {
+                                    showServerDialog = false
+                                }
+                            )
                         }
                         is InviteAction.GenerateToken -> {
-                            serverViewModel.createServerToken(serverId = action.serverId,
-                            )
+                            serverViewModel.createServerToken(serverId = action.serverId)
                         }
                         is InviteAction.JoinServer -> {
                             Unit
@@ -232,9 +240,14 @@ fun LeftNavigation(
                 label = stringResource(R.string.enter_token),
                 primaryButtonLabel = stringResource(R.string.join),
                 dialogMode = dialogMode,
-                onAction = {action ->
+                onAction = { action ->
                     if(action is InviteAction.JoinServer) {
-                        serverViewModel.joinByToken(action.serverToken)
+                        serverViewModel.joinByToken(
+                            action.serverToken,
+                            onSuccess = {
+                                showServerDialog = false
+                            }
+                        )
                     }
                 }
             )
