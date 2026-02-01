@@ -28,6 +28,7 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.example.liveroom.ui.view.main.components.BottomNavigationBar
 import com.example.liveroom.ui.view.main.components.HomeComponent
+import com.example.liveroom.ui.view.main.components.Invites
 import com.example.liveroom.ui.view.main.components.LeftNavigation
 import com.example.liveroom.ui.view.main.components.TopDynamicHeader
 import com.example.liveroom.ui.viewmodel.ServerViewModel
@@ -104,6 +105,7 @@ fun MainView(navController: NavController, userViewModel: UserViewModel, serverV
             ) {
                 when (selectedTab) {
                     "home" -> HomeComponent()
+                    //"invites" -> Invites()
                 }
             }
         }

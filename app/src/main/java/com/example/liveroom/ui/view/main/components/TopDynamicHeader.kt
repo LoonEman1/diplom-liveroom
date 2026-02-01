@@ -51,6 +51,7 @@ fun TopDynamicHeader(selectedTab : String, userViewModel: UserViewModel) {
                 text = when (selectedTab) {
                     "home" -> stringResource(R.string.home)
                     "profile" -> stringResource(R.string.profile)
+                    "invites" -> stringResource(R.string.invites)
                     else -> "LiveRoom"
                 },
                 fontWeight = FontWeight.Bold,

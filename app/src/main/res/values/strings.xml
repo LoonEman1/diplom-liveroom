@@ -66,4 +66,8 @@
     <string name="no_changes_to_update">No changes for update!</string>
     <string name="token_is_empty">The token is empty!</string>
     <string name="user_joined">You have successfully connected to the server!</string>
+    <string name="invites">Invites</string>
+    <string name="invites_empty">No pending invitations</string>
+    <string name="invite_valid">Valid until:</string>
+    <string name="invited_by_user">Invited by user:</string>
 </resources>
