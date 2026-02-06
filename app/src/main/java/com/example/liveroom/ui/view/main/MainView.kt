@@ -14,6 +14,8 @@ import androidx.navigation.compose.rememberNavController
 import com.example.liveroom.ui.view.main.layouts.MainLayout
 import com.example.liveroom.ui.viewmodel.ServerViewModel
 import com.example.liveroom.ui.viewmodel.UserViewModel
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 @Composable
@@ -21,15 +23,28 @@ fun MainView(navController: NavController, userViewModel: UserViewModel, serverV
 
     val userId = userViewModel.userId.collectAsState()
     val accessToken = userViewModel.accessToken.collectAsState()
-    LaunchedEffect(accessToken)
-    {
-        launch {
-            if (serverViewModel.servers.value.isEmpty()) serverViewModel.getServers(userId.value)
+    val userInfo = userViewModel.userInfo.collectAsState()
+    val serverInvites = serverViewModel.serverInvites.collectAsState()
+
+    LaunchedEffect(accessToken) {
+        if (userInfo.value == null) {
+            userViewModel.getUserInfo()
         }
-        launch {
-            serverViewModel.getInvites()
+        userViewModel.userInfo.first { it != null }
+
+        coroutineScope {
+            launch {
+                if (serverViewModel.servers.value.isEmpty())
+                    serverViewModel.getServers(userViewModel.userId.value)
+            }
+            launch {
+                if (serverInvites.value.isEmpty())
+                    serverViewModel.getInvites()
+            }
         }
     }
+
+
     MainLayout(userViewModel, serverViewModel)
 }
 

@@ -8,11 +8,13 @@ import com.example.liveroom.data.factory.CoilImageLoaderFactory
 import com.example.liveroom.data.local.TokenManager
 import com.example.liveroom.data.remote.api.AuthService
 import com.example.liveroom.data.remote.api.ServerApiService
+import com.example.liveroom.data.remote.api.UserApiService
 import com.example.liveroom.data.remote.dto.AuthResponse
 import com.example.liveroom.data.remote.dto.RefreshTokenRequest
 import com.example.liveroom.data.remote.dto.toRequestBody
 import com.example.liveroom.data.repository.ServerRepository
 import com.example.liveroom.data.repository.TokenRepository
+import com.example.liveroom.data.repository.UserRepository
 import com.example.liveroom.ui.viewmodel.UserViewModel
 import dagger.Module
 import dagger.Provides
@@ -98,4 +100,19 @@ class HiltModule {
     ): ServerRepository {
         return ServerRepository(apiService, context)
     }
+
+    @Singleton
+    @Provides
+    fun provideUserApiService(retrofit: Retrofit) : UserApiService {
+        return retrofit.create(UserApiService::class.java)
+    }
+
+    @Singleton
+    @Provides
+    fun provideUserRepository(
+        apiService: UserApiService
+    ) : UserRepository {
+        return UserRepository(apiService)
+    }
+
 }
