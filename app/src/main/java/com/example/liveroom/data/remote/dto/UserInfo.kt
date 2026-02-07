@@ -14,8 +14,6 @@ data class UserInfo(
     val avatarUpdatedAt: Long,
     val showNicknamesOnServers: Boolean,
     val allowProfileView: Boolean,
-
-    @Transient
     val avatarUrl: String?
 )
 
@@ -25,5 +23,6 @@ data class UpdateProfileRequest(
     val lastName: String? = null,
     val about: String? = null,
     val showNicknamesOnServers: Boolean? = null,
-    val allowProfileView: Boolean? = null
+    val allowProfileView: Boolean? = null,
+    val avatarUri: String? = null
 )

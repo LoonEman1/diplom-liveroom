@@ -1,5 +1,6 @@
 package com.example.liveroom.ui.viewmodel
 
+import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -145,6 +146,21 @@ class UserViewModel @Inject constructor(
                 Log.e("UserViewModel", "Failed to update user: ${throwable.message}")
                 _userEvents.emit(UserEvent.Error(throwable.getServerErrorMessage()))
             }
+        }
+    }
+
+    fun updateAvatar(uri: Uri) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            userRepository.updateAvatar(uri)
+                .onSuccess { updated ->
+                    _userInfo.value = updated
+                    _userEvents.emit(UserEvent.AvatarUpdated)
+                }
+                .onFailure { e ->
+                    _userEvents.emit(UserEvent.Error(e.message ?: "Unknown error"))
+                }
+            _isLoading.value = false
         }
     }
 

@@ -40,6 +40,7 @@ fun MainLayout(
 
     val textUserUpdate = stringResource(R.string.profile_updated)
     val successLogout = stringResource(R.string.success_logout)
+    val avatarUpdated = stringResource(R.string.avatar_updated)
 
     LaunchedEffect(userEvents) {
         userEvents?.let { event ->
@@ -61,6 +62,9 @@ fun MainLayout(
                         serverViewModel.clear()
                         popUpTo(Screen.LoginScreen.route) { inclusive = true }
                     }
+                }
+                is UserEvent.AvatarUpdated -> {
+                    Toast.makeText(context, avatarUpdated, Toast.LENGTH_SHORT).show()
                 }
             }
         }

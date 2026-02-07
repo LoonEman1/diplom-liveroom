@@ -110,9 +110,10 @@ class HiltModule {
     @Singleton
     @Provides
     fun provideUserRepository(
-        apiService: UserApiService
+        apiService: UserApiService,
+        @ApplicationContext context: Context,
     ) : UserRepository {
-        return UserRepository(apiService)
+        return UserRepository(apiService, context)
     }
 
 }

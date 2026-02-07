@@ -36,6 +36,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,6 +58,8 @@ import com.example.liveroom.ui.components.PrimaryButton
 import com.example.liveroom.ui.theme.ButtonColor
 import com.example.liveroom.ui.view.main.components.common.ConfirmationDialog
 import com.example.liveroom.ui.viewmodel.UserViewModel
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -97,11 +100,21 @@ fun ProfileContent(
 ) {
     if (userInfo == null) return
 
-    var profileImageUri by remember { mutableStateOf<Uri?>(null) }
+
+    val serverImageUrl by remember {
+        derivedStateOf {
+            userInfo?.hasAvatar?.let {
+                if (it) "https://nighthunting23.ru${userInfo.avatarUrl}" else null
+            }
+        }
+    }
+
+    var imageModel: Any? by remember { mutableStateOf(serverImageUrl) }
+
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        profileImageUri = uri
+        imageModel = uri
     }
 
 
@@ -111,8 +124,9 @@ fun ProfileContent(
     var about by remember { mutableStateOf(userInfo.about.orEmpty()) }
     var showNicknamesOnServers by remember { mutableStateOf(userInfo.showNicknamesOnServers) }
     var allowProfileView by remember { mutableStateOf(userInfo.allowProfileView) }
+    val coroutineScope = rememberCoroutineScope()
 
-    val hasChanges by remember(nickname, firstName, lastName, about, showNicknamesOnServers, allowProfileView, profileImageUri) {
+    val hasChanges by remember(nickname, firstName, lastName, about, showNicknamesOnServers, allowProfileView, imageModel) {
         derivedStateOf {
             nickname != userInfo.nickname ||
                     firstName != (userInfo.firstName ?: "") ||
@@ -120,7 +134,7 @@ fun ProfileContent(
                     about != (userInfo.about ?: "") ||
                     showNicknamesOnServers != userInfo.showNicknamesOnServers ||
                     allowProfileView != userInfo.allowProfileView ||
-                    profileImageUri != null
+                    ((imageModel is Uri) && imageModel != null)
         }
     }
 
@@ -147,9 +161,9 @@ fun ProfileContent(
                     .clickable { imagePickerLauncher.launch("image/*") },
                 contentAlignment = Alignment.Center
             ) {
-                if (profileImageUri != null) {
+                if (imageModel != null) {
                     AsyncImage(
-                        model = profileImageUri,
+                        model = imageModel ?: serverImageUrl,
                         contentDescription = "Profile avatar",
                         modifier = Modifier
                             .fillMaxSize()
@@ -260,14 +274,29 @@ fun ProfileContent(
             modifier = Modifier.fillMaxWidth(),
             enabled = hasChanges,
             onClick = {
-                val request = UpdateProfileRequest(
-                    firstName = if (firstName != (userInfo.firstName ?: "")) firstName else null,
-                    lastName = if (lastName != (userInfo.lastName ?: "")) lastName else null,
-                    about = if (about != (userInfo.about ?: "")) about else null,
-                    showNicknamesOnServers = if (showNicknamesOnServers != userInfo.showNicknamesOnServers) showNicknamesOnServers else null,
-                    allowProfileView = if (allowProfileView != userInfo.allowProfileView) allowProfileView else null,
-                )
-                userViewModel.editProfile(request)
+                coroutineScope.launch {
+                    if (firstName != (userInfo.firstName ?: "") ||
+                        lastName != (userInfo.lastName ?: "") ||
+                        about != (userInfo.about ?: "") ||
+                        showNicknamesOnServers != userInfo.showNicknamesOnServers ||
+                        allowProfileView != userInfo.allowProfileView) {
+
+                        val request = UpdateProfileRequest(
+                            firstName = if (firstName != (userInfo.firstName ?: "")) firstName else null,
+                            lastName = if (lastName != (userInfo.lastName ?: "")) lastName else null,
+                            about = if (about != (userInfo.about ?: "")) about else null,
+                            showNicknamesOnServers = if (showNicknamesOnServers != userInfo.showNicknamesOnServers) showNicknamesOnServers else null,
+                            allowProfileView = if (allowProfileView != userInfo.allowProfileView) allowProfileView else null,
+                        )
+                        userViewModel.editProfile(request)
+                    }
+                }
+                coroutineScope.launch {
+                    val localImageModel = imageModel
+                    (localImageModel as? Uri)?.let { uri ->
+                        userViewModel.updateAvatar(uri)
+                    }
+                }
             }
         )
         PrimaryButton(

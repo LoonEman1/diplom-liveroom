@@ -5,4 +5,5 @@ sealed class UserEvent {
     object ProfileUpdated : UserEvent()
     data class Error(val message: String) : UserEvent()
     object UserLogOuted : UserEvent()
+    object AvatarUpdated: UserEvent()
 }

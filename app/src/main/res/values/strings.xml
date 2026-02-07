@@ -85,4 +85,5 @@
     <string name="confirm_logout">Are you sure you want to log out of your account?</string>
     <string name="profile_updated">Profile successfully updated</string>
     <string name="success_logout">You have successfully logged out</string>
+    <string name="avatar_updated">Avatar successfully changed!</string>
 </resources>
