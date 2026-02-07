@@ -216,7 +216,7 @@ fun ServerDialog(
             ) {
                 PrimaryButton(
                     onClick = onDismiss,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).padding(20.dp),
                     text = stringResource(R.string.cancel),
                     containerColor = MaterialTheme.colorScheme.error
                 )
@@ -244,7 +244,7 @@ fun ServerDialog(
                             )
                         )
                     },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f).padding(20.dp)
                 )
             }
         }
@@ -379,7 +379,8 @@ fun EnterTheValueTab(
         )
         PrimaryButton(
             onClick = onSubmit,
-            text = primaryButtonLabel
+            text = primaryButtonLabel,
+            modifier = Modifier.padding(20.dp)
         )
     }
 }

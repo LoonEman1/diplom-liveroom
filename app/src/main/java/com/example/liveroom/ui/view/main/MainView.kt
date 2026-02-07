@@ -45,7 +45,7 @@ fun MainView(navController: NavController, userViewModel: UserViewModel, serverV
     }
 
 
-    MainLayout(userViewModel, serverViewModel)
+    MainLayout(userViewModel, serverViewModel, navController)
 }
 
 @Preview

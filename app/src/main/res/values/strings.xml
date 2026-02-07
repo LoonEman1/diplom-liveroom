@@ -74,4 +74,15 @@
     <string name="confirm">Confirm</string>
     <string name="leave_from_server">Do you want to leave the server?</string>
     <string name="user_already_joined">The user is already on this server</string>
+    <string name="show_real_name">Allow display of first and last name on servers</string>
+    <string name="user_id">User id</string>
+    <string name="first_name">First name</string>
+    <string name="last_name">Last name</string>
+    <string name="about_me">About me</string>
+    <string name="save_changes">Save changes</string>
+    <string name="allow_show_profile">Allow other users on the server to view your profile</string>
+    <string name="logout">Log out</string>
+    <string name="confirm_logout">Are you sure you want to log out of your account?</string>
+    <string name="profile_updated">Profile successfully updated</string>
+    <string name="success_logout">You have successfully logged out</string>
 </resources>

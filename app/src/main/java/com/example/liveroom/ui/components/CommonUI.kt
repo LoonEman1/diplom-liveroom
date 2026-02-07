@@ -4,6 +4,7 @@ import android.graphics.drawable.Icon
 import android.util.Log
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -60,7 +61,8 @@ fun CustomTextField(
     keyboardActions: KeyboardActions = KeyboardActions.Default,
     textColor: Color = Color.Gray,
     singleLine: Boolean = true,
-    isError : Boolean = false
+    isError : Boolean = false,
+    enabled: Boolean = true
 ) {
 
     val colors = MaterialTheme.colorScheme
@@ -94,7 +96,8 @@ fun CustomTextField(
             errorTextColor = colors.onSurface,
             errorLabelColor = colors.error
         ),
-        isError = isError
+        isError = isError,
+        enabled = enabled
     )
 }
 
@@ -106,7 +109,8 @@ fun PrimaryButton(
     modifier: Modifier = Modifier,
     icon : (@Composable () -> Unit)? = null,
     containerColor: Color = ButtonColor,
-    debounceMs: Long = 1000L
+    debounceMs: Long = 1000L,
+    enabled: Boolean =  true
 ) {
     val lastClickTime = remember { mutableLongStateOf(0L) }
 
@@ -119,8 +123,8 @@ fun PrimaryButton(
                 onClick()
             }
         },
+        enabled = enabled,
         modifier = modifier
-            .padding(top = 20.dp)
             .fillMaxWidth(0.7f),
         colors = ButtonDefaults.buttonColors(containerColor = containerColor),
         shape = RoundedCornerShape(14.dp),
@@ -171,3 +175,29 @@ fun PreviewCustomTextField() {
     )
 }
 
+
+@Composable
+fun EditableField(
+    label: String,
+    value: String?,
+    enabled: Boolean = true,
+    singleLine: Boolean = true,
+    onValueChange: (String) -> Unit
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Spacer(Modifier.height(4.dp))
+        CustomTextField(
+            value = value.orEmpty(),
+            onValueChange = onValueChange,
+            label = "",
+            enabled = enabled,
+            singleLine = singleLine,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}

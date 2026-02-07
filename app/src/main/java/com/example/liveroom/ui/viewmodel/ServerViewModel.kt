@@ -120,8 +120,10 @@ class ServerViewModel @Inject constructor(
         }
     }
 
-    fun clearError() {
-        _error.value = null
+    fun clear() {
+        _servers.value = emptyList()
+        _generatedToken.value = null
+        _serverInvites.value = emptyList()
     }
 
     fun deleteServer(

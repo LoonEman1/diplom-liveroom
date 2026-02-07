@@ -12,9 +12,11 @@ data class UserInfo(
     val createdAt: String,
     val hasAvatar: Boolean,
     val avatarUpdatedAt: Long,
-    val avatarUrl: String?,
     val showNicknamesOnServers: Boolean,
-    val allowProfileView: Boolean
+    val allowProfileView: Boolean,
+
+    @Transient
+    val avatarUrl: String?
 )
 
 

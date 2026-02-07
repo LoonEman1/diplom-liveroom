@@ -250,7 +250,8 @@ fun AuthFormView(
                     PrimaryButton(
                         onClick = onSubmit,
                         text = submitButtonText,
-                        icon = icon
+                        icon = icon,
+                        modifier = Modifier.padding(20.dp)
                     )
                 }
             }
