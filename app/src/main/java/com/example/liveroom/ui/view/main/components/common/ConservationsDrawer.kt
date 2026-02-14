@@ -40,11 +40,11 @@ import com.example.liveroom.ui.viewmodel.UserViewModel
 
 @Composable
 fun LeftNavigation(
-    selectedTab : String,
     onTabSelected: (String) -> Unit,
     modifier: Modifier = Modifier,
     serverViewModel: ServerViewModel,
-    userViewModel: UserViewModel
+    userViewModel: UserViewModel,
+    onServerSelected: (Server) -> Unit
 ) {
 
     var showServerDialog by remember { mutableStateOf(false) }
@@ -168,6 +168,8 @@ fun LeftNavigation(
                 isSelected = server.id == selectedServerId,
                 onClickServer = {
                     serverViewModel.setSelectedServerId(server.id)
+                    onTabSelected("server")
+                    onServerSelected(server)
                     Log.d("SelectedServer", serverViewModel.selectedServerId.value.toString())
                 },
                 onEditServer = {

@@ -20,6 +20,7 @@ import androidx.navigation.NavController
 import androidx.navigation.NavHostController
 import com.example.liveroom.R
 import com.example.liveroom.data.model.UserEvent
+import com.example.liveroom.data.remote.dto.Server
 import com.example.liveroom.ui.navigation.Screen
 import com.example.liveroom.ui.view.main.components.common.BottomNavigationBar
 import com.example.liveroom.ui.view.main.components.common.LeftNavigation
@@ -41,6 +42,7 @@ fun MainLayout(
     val textUserUpdate = stringResource(R.string.profile_updated)
     val successLogout = stringResource(R.string.success_logout)
     val avatarUpdated = stringResource(R.string.avatar_updated)
+    var selectedServer : Server? = null
 
     LaunchedEffect(userEvents) {
         userEvents?.let { event ->
@@ -86,8 +88,8 @@ fun MainLayout(
                 )
         ) {
             LeftNavigation(
-                selectedTab = selectedTab,
                 onTabSelected = { selectedTab = it },
+                onServerSelected = {selectedServer = it},
                 serverViewModel = serverViewModel,
                 userViewModel = userViewModel
             )
@@ -105,7 +107,7 @@ fun MainLayout(
                 )
             },
             topBar = {
-                TopDynamicHeader(selectedTab = selectedTab, userViewModel = userViewModel)
+                TopDynamicHeader(selectedTab = selectedTab, userViewModel = userViewModel, selectedServer)
             }
         ) { innerPadding ->
             Box(modifier = Modifier.padding(innerPadding)) {
@@ -129,6 +131,9 @@ fun MainLayout(
                     }
                     "profile" -> {
                         ProfileComponent(userViewModel)
+                    }
+                    "server" -> {
+                        ServerComponent(selectedServer ?: null, serverViewModel)
                     }
                 }
             }

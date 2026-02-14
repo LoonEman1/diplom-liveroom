@@ -86,4 +86,9 @@
     <string name="profile_updated">Profile successfully updated</string>
     <string name="success_logout">You have successfully logged out</string>
     <string name="avatar_updated">Avatar successfully changed!</string>
+    <string name="members">Members</string>
+    <string name="create_text_channel">Create a text channel</string>
+    <string name="chat_name">Chat name</string>
+    <string name="private_chat">Private chat</string>
+    <string name="text_channels">Text channels</string>
 </resources>

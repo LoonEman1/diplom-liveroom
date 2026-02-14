@@ -1,10 +1,13 @@
 package com.example.liveroom.data.remote.api
 
+import com.example.liveroom.data.remote.dto.Conversation
+import com.example.liveroom.data.remote.dto.CreateConversationRequest
 import com.example.liveroom.data.remote.dto.CreateServerRequest
 import com.example.liveroom.data.remote.dto.Invite
 import com.example.liveroom.data.remote.dto.InviteUserRequest
 import com.example.liveroom.data.remote.dto.JoinByTokenRequest
 import com.example.liveroom.data.remote.dto.Server
+import com.example.liveroom.data.remote.dto.ServerMember
 import com.example.liveroom.data.remote.dto.UpdateServerRequest
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
@@ -104,5 +107,17 @@ interface ServerApiService {
     suspend fun leaveFromServer(
         @Path("serverId") serverId : Int
     ) : Response<Unit>
+
+    @GET("api/servers/{serverId}/conversations")
+    suspend fun getServerConversations(@Path("serverId") serverId: Int): List<Conversation>
+
+    @GET("api/servers/{serverId}/members")
+    suspend fun getServerMembers(@Path("serverId") serverId: Int): List<ServerMember>
+
+    @POST("api/servers/{serverId}/conversations")
+    suspend fun createConversation(
+        @Path("serverId") serverId: Int,
+        @Body request: CreateConversationRequest
+    ): Conversation
 
 }

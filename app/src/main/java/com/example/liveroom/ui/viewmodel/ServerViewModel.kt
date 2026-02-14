@@ -16,8 +16,10 @@ import android.util.Log
 import com.example.liveroom.data.model.ServerError
 import com.example.liveroom.data.model.ServerEvent
 import com.example.liveroom.data.remote.dto.ApiErrorResponse
+import com.example.liveroom.data.remote.dto.Conversation
 import com.example.liveroom.data.remote.dto.Invite
 import com.example.liveroom.data.remote.dto.Server
+import com.example.liveroom.data.remote.dto.ServerMember
 import com.example.liveroom.data.repository.ServerRepository
 import com.example.liveroom.util.getServerErrorMessage
 import com.google.gson.Gson
@@ -54,6 +56,12 @@ class ServerViewModel @Inject constructor(
 
     private val _serverInvites = MutableStateFlow<List<Invite.UserInvite>>(emptyList())
     val serverInvites: StateFlow<List<Invite.UserInvite>> = _serverInvites.asStateFlow()
+
+    private val _conversations = MutableStateFlow<List<Conversation>>(emptyList())
+    val conversations = _conversations.asStateFlow()
+
+    private val _members = MutableStateFlow<List<ServerMember>>(emptyList())
+    val members = _members.asStateFlow()
 
     fun setSelectedServerId(selectedServerId: Int) {
         _selectedServerId.value = selectedServerId
@@ -447,6 +455,41 @@ class ServerViewModel @Inject constructor(
                 started = SharingStarted.Lazily,
                 initialValue = null
             )
+    }
+
+    fun loadServerData(serverId: Int) {
+        viewModelScope.launch {
+            serverRepository.loadServerData(serverId).fold(
+                onSuccess = { (chats, members) ->
+                    _conversations.value = chats
+                    _members.value = members
+                },
+                onFailure = { error ->
+                    Log.e("ServerVM", "Ошибка: ${error.message}")
+                }
+            )
+        }
+    }
+
+    fun createConversation(
+        serverId: Int,
+        title: String,
+        isPrivate: Boolean = false
+    ) {
+        viewModelScope.launch {
+            serverRepository.createConversation(serverId, title, isPrivate).fold(
+                onSuccess = { newChat ->
+                    val updatedChats = _conversations.value.toMutableList().apply {
+                        add(0, newChat)
+                    }
+                    _conversations.value = updatedChats
+                    Log.d("ServerVM", "Чат создан: $title")
+                },
+                onFailure = { error ->
+                    Log.e("ServerVM", "createConversation error: ${error.message}")
+                }
+            )
+        }
     }
 
 }

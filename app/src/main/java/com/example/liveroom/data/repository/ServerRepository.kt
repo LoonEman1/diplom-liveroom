@@ -5,13 +5,18 @@ import android.net.Uri
 import android.util.Log
 import androidx.core.net.toUri
 import com.example.liveroom.data.remote.api.ServerApiService
+import com.example.liveroom.data.remote.dto.Conversation
+import com.example.liveroom.data.remote.dto.CreateConversationRequest
 import com.example.liveroom.data.remote.dto.CreateServerRequest
 import com.example.liveroom.data.remote.dto.Invite
 import com.example.liveroom.data.remote.dto.InviteUserRequest
 import com.example.liveroom.data.remote.dto.JoinByTokenRequest
 import com.example.liveroom.data.remote.dto.Server
+import com.example.liveroom.data.remote.dto.ServerMember
 import com.example.liveroom.data.remote.dto.UpdateServerRequest
 import com.google.gson.Gson
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
@@ -264,6 +269,68 @@ class ServerRepository @Inject constructor(
             Result.success(response)
         } catch(e : Exception) {
             Log.e("getInvites", e.message ?: "unknown  error")
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getServerConversations(serverId: Int): Result<List<Conversation>> {
+        return try {
+            val conversations = apiService.getServerConversations(serverId)
+            Result.success(conversations)
+        } catch (e: Exception) {
+            Log.e("ServerRepo", "Ошибка чатов: ${e.message}")
+            Result.failure(e)
+        }
+    }
+    suspend fun getServerMembers(serverId: Int): Result<List<ServerMember>> {
+        return try {
+            val members = apiService.getServerMembers(serverId)
+            Result.success(members)
+        } catch (e: Exception) {
+            Log.e("ServerRepo", "Ошибка членов: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    suspend fun loadServerData(serverId: Int): Result<Pair<List<Conversation>, List<ServerMember>>> {
+        return try {
+            val conversationsDeferred = coroutineScope {
+                async { getServerConversations(serverId) }
+            }
+            val membersDeferred = coroutineScope {
+                async { getServerMembers(serverId) }
+            }
+
+            val conversationsResult = conversationsDeferred.await()
+            val membersResult = membersDeferred.await()
+
+            if (conversationsResult.isSuccess && membersResult.isSuccess) {
+                Result.success(Pair(conversationsResult.getOrNull()!!, membersResult.getOrNull()!!))
+            } else {
+                Result.failure(Exception("Network error"))
+            }
+        } catch (e: Exception) {
+            Log.e("ServerRepo", "loadServerData ошибка: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    suspend fun createConversation(
+        serverId: Int,
+        title: String,
+        isPrivate: Boolean = false,
+        memberUserIds: List<Long> = emptyList()
+    ): Result<Conversation> {
+        return try {
+            val request = CreateConversationRequest(
+                title = title,
+                isPrivate = isPrivate,
+                memberUserIds = memberUserIds
+            )
+            val conversation = apiService.createConversation(serverId, request)
+            Result.success(conversation)
+        } catch (e: Exception) {
+            Log.e("ServerRepo", "Ошибка создания чата: ${e.message}")
             Result.failure(e)
         }
     }

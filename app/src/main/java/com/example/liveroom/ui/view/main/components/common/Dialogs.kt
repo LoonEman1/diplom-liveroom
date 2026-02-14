@@ -216,7 +216,7 @@ fun ServerDialog(
             ) {
                 PrimaryButton(
                     onClick = onDismiss,
-                    modifier = Modifier.weight(1f).padding(20.dp),
+                    modifier = Modifier.weight(1f).height(48.dp),
                     text = stringResource(R.string.cancel),
                     containerColor = MaterialTheme.colorScheme.error
                 )
@@ -244,7 +244,7 @@ fun ServerDialog(
                             )
                         )
                     },
-                    modifier = Modifier.weight(1f).padding(20.dp)
+                    modifier = Modifier.weight(1f).height(48.dp)
                 )
             }
         }

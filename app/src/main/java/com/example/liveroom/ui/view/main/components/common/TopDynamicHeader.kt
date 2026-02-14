@@ -23,10 +23,11 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.example.liveroom.R
+import com.example.liveroom.data.remote.dto.Server
 import com.example.liveroom.ui.viewmodel.UserViewModel
 
 @Composable
-fun TopDynamicHeader(selectedTab : String, userViewModel: UserViewModel) {
+fun TopDynamicHeader(selectedTab : String, userViewModel: UserViewModel, server : Server?) {
 
     val statusBarPadding = WindowInsets.statusBars.asPaddingValues()
     val username by userViewModel.username.collectAsState()
@@ -52,6 +53,7 @@ fun TopDynamicHeader(selectedTab : String, userViewModel: UserViewModel) {
                     "home" -> stringResource(R.string.home)
                     "profile" -> stringResource(R.string.profile)
                     "invites" -> stringResource(R.string.invites)
+                    "server" -> "${server?.name}"
                     else -> "LiveRoom"
                 },
                 fontWeight = FontWeight.Bold,
@@ -68,12 +70,4 @@ fun TopDynamicHeader(selectedTab : String, userViewModel: UserViewModel) {
             thickness = 1.dp
         )
     }
-}
-
-@Preview
-@Composable
-fun PreviewTopDynamicHeader() {
-    TopDynamicHeader(
-        "home", userViewModel = hiltViewModel<UserViewModel>()
-    )
 }
