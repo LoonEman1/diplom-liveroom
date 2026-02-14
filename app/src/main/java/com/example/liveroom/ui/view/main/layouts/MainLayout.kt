@@ -42,7 +42,7 @@ fun MainLayout(
     val textUserUpdate = stringResource(R.string.profile_updated)
     val successLogout = stringResource(R.string.success_logout)
     val avatarUpdated = stringResource(R.string.avatar_updated)
-    var selectedServer : Server? = null
+    val selectedServer by serverViewModel.selectedServer.collectAsState()
 
     LaunchedEffect(userEvents) {
         userEvents?.let { event ->
@@ -89,7 +89,7 @@ fun MainLayout(
         ) {
             LeftNavigation(
                 onTabSelected = { selectedTab = it },
-                onServerSelected = {selectedServer = it},
+                onServerSelected = {serverViewModel.setSelectedServer(it)},
                 serverViewModel = serverViewModel,
                 userViewModel = userViewModel
             )

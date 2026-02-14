@@ -63,8 +63,20 @@ class ServerViewModel @Inject constructor(
     private val _members = MutableStateFlow<List<ServerMember>>(emptyList())
     val members = _members.asStateFlow()
 
+    private val _selectedServer = MutableStateFlow<Server?>(null)
+    val selectedServer = _selectedServer.asStateFlow()
+
     fun setSelectedServerId(selectedServerId: Int) {
         _selectedServerId.value = selectedServerId
+    }
+
+    fun clearServerData() {
+        _conversations.value = emptyList()
+        _members.value = emptyList()
+    }
+
+    fun setSelectedServer(server : Server) {
+        _selectedServer.value = server
     }
 
     fun createServer(
