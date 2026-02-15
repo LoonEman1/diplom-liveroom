@@ -5,12 +5,15 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -140,7 +143,7 @@ fun ServerItem(
 
 @Composable
 fun ServerContextMenu(
-    server : Server,
+    server: Server,
     onDismiss: () -> Unit,
     offset: Offset,
     onEdit: () -> Unit,
@@ -148,10 +151,9 @@ fun ServerContextMenu(
     onInvite: () -> Unit,
     onLeave: () -> Unit
 ) {
-
     Popup(
         alignment = Alignment.TopEnd,
-        offset = IntOffset(offset.x.toInt(),offset.y.toInt()),
+        offset = IntOffset(offset.x.toInt(), offset.y.toInt()),
         onDismissRequest = { onDismiss() }
     ) {
         Column(
@@ -159,55 +161,110 @@ fun ServerContextMenu(
                 .clip(RoundedCornerShape(14.dp))
                 .background(MaterialTheme.colorScheme.primary)
                 .padding(16.dp)
+                .width(140.dp)
         ) {
-            if(server.myRole.name == "OWNER") {
+            if (server.myRole.name == "OWNER") {
                 Text(
                     text = stringResource(R.string.edit),
                     color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.clickable {
-                        onEdit()
-                    }
+                    modifier = Modifier
+                        .clickable(
+                            indication = null,
+                            interactionSource = remember { MutableInteractionSource() }
+                        ) {
+                            onDismiss()
+                            onEdit()
+                        }
+                        .padding(12.dp)
+                )
+
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                    thickness = 1.dp,
+                    modifier = Modifier.padding(horizontal = 4.dp)
                 )
 
                 Text(
                     text = stringResource(R.string.invite_to_server),
                     color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.clickable {
-                        onInvite()
-                    }
+                    modifier = Modifier
+                        .clickable(
+                            indication = null,
+                            interactionSource = remember { MutableInteractionSource() }
+                        ) {
+                            onDismiss()
+                            onInvite()
+                        }
+                        .padding(12.dp)
                 )
 
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                    thickness = 1.dp,
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                )
                 Text(
                     text = stringResource(R.string.delete),
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.clickable {
-                        onDelete()
-                    }
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier
+                        .clickable(
+                            indication = null,
+                            interactionSource = remember { MutableInteractionSource() }
+                        ) {
+                            onDismiss()
+                            onDelete()
+                        }
+                        .padding(12.dp)
                 )
             }
-            else if(server.myRole.name == "ADMIN") {
+            else if (server.myRole.name == "ADMIN") {
                 Text(
                     text = stringResource(R.string.invite_to_server),
                     color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.clickable {
-                        onInvite()
-                    }
+                    modifier = Modifier
+                        .clickable(
+                            indication = null,
+                            interactionSource = remember { MutableInteractionSource() }
+                        ) {
+                            onDismiss()
+                            onInvite()
+                        }
+                        .padding(12.dp)
                 )
+
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                    thickness = 1.dp,
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                )
+
                 Text(
                     text = stringResource(R.string.leave),
                     color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.clickable {
-                        onLeave()
-                    }
+                    modifier = Modifier
+                        .clickable(
+                            indication = null,
+                            interactionSource = remember { MutableInteractionSource() }
+                        ) {
+                            onDismiss()
+                            onLeave()
+                        }
+                        .padding(12.dp)
                 )
             }
             else {
                 Text(
                     text = stringResource(R.string.leave),
                     color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.clickable {
-                        onLeave()
-                    }
+                    modifier = Modifier
+                        .clickable(
+                            indication = null,
+                            interactionSource = remember { MutableInteractionSource() }
+                        ) {
+                            onDismiss()
+                            onLeave()
+                        }
+                        .padding(12.dp)
                 )
             }
         }

@@ -12,9 +12,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -58,17 +60,30 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.round
 import com.example.liveroom.data.remote.dto.Conversation
+import com.example.liveroom.data.remote.dto.Role
 import com.example.liveroom.ui.components.CustomTextField
 import com.example.liveroom.ui.components.PrimaryButton
 import com.example.liveroom.ui.theme.ButtonColor
 import com.example.liveroom.ui.theme.ErrorRed
 import com.example.liveroom.ui.theme.linkTextColor
+import androidx.compose.foundation.gestures.detectTapGestures  // Добавьте!
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.window.Popup
+import com.example.liveroom.ui.view.main.components.common.DeleteConversationDialog
+import com.example.liveroom.ui.view.main.components.common.EditConversationDialog
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -78,15 +93,30 @@ fun ServerComponent(
 ) {
     var showCreateChatDialog by remember { mutableStateOf(false) }
 
-    LaunchedEffect(server) {
-        if (server != null) serverViewModel.loadServerData(server.id)
-    }
 
     val conversations by serverViewModel.conversations.collectAsState()
     val members by serverViewModel.members.collectAsState()
     var showMembers by remember { mutableStateOf(false) }
+    val isLoading by serverViewModel.isLoading.collectAsState()
+
+
+    var showEditDialog by remember { mutableStateOf(false) }
+    var editingConversation by remember { mutableStateOf<Conversation?>(null) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var deletingConversationId by remember { mutableStateOf<Long?>(null) }
+
+    var deletingConversationName by remember { mutableStateOf("") }
+
 
     Column(modifier = Modifier.fillMaxHeight()) {
+        if(isLoading) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
+        }
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -149,7 +179,8 @@ fun ServerComponent(
             color = MaterialTheme.colorScheme.primary,
             thickness = 1.dp,
             modifier = Modifier
-                .fillMaxWidth().padding(vertical = if (showMembers) 16.dp else 0.dp)
+                .fillMaxWidth()
+                .padding(vertical = if (showMembers) 16.dp else 0.dp)
         )
 
 
@@ -179,7 +210,21 @@ fun ServerComponent(
             Spacer(modifier = Modifier.height(16.dp))
             LazyColumn(modifier = Modifier.padding(horizontal = 16.dp)) {
                 items(conversations) { convo ->
-                    ConversationItem(convo)
+                    ConversationItem(
+                        convo = convo,
+                        serverId = server?.id!!,
+                        serverViewModel = serverViewModel,
+                        myRole = server.myRole,
+                        onEditConversation = { conversation ->
+                            editingConversation = conversation
+                            showEditDialog = true
+                        },
+                        onDeleteConversation = { name ->
+                            deletingConversationId = convo.id
+                            showDeleteDialog = true
+                            deletingConversationName = convo.title
+                        }
+                    )
                 }
             }
 
@@ -191,7 +236,10 @@ fun ServerComponent(
             icon = {
                 Icon(Icons.Default.Add, contentDescription = null)
             },
-            modifier = Modifier.fillMaxWidth().padding(16.dp).heightIn(min = 48.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+                .heightIn(min = 48.dp),
             containerColor = MaterialTheme.colorScheme.primary
         )
     }
@@ -203,15 +251,62 @@ fun ServerComponent(
             onDismiss = { showCreateChatDialog = false }
         )
     }
+
+    if (showEditDialog && editingConversation != null) {
+        EditConversationDialog(
+            conversation = editingConversation!!,
+            serverId = server?.id ?: 0,
+            serverViewModel = serverViewModel,
+            onDismiss = {
+                showEditDialog = false
+                editingConversation = null
+            }
+        )
+    }
+
+    if (showDeleteDialog && deletingConversationId != null) {
+        val currentConvo = conversations.find { it.id == deletingConversationId }
+        currentConvo?.let { convo ->
+            DeleteConversationDialog(
+                conversationName = deletingConversationName,
+                serverId = server?.id ?: 0,
+                serverViewModel = serverViewModel,
+                conversationId = deletingConversationId!!,
+                onDismiss = {
+                    showDeleteDialog = false
+                    deletingConversationId = null
+                }
+            )
+        }
+    }
 }
 
 
 @Composable
-fun ConversationItem(convo: Conversation) {
+fun ConversationItem(
+    convo: Conversation,
+    serverId: Int,
+    serverViewModel: ServerViewModel,
+    myRole: Role?,
+    onEditConversation: (Conversation) -> Unit,
+    onDeleteConversation: (String) -> Unit
+) {
+    var showContextMenu by remember { mutableStateOf(false) }
+    var popupOffset by remember { mutableStateOf(Offset.Zero) }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
+            .padding(vertical = 4.dp)
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onTap = {  },
+                    onLongPress = { offset ->
+                        popupOffset = offset
+                        showContextMenu = true
+                    }
+                )
+            },
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondary)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -255,7 +350,9 @@ fun ConversationItem(convo: Conversation) {
             }
 
             Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
@@ -263,6 +360,81 @@ fun ConversationItem(convo: Conversation) {
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f)
+                )
+            }
+        }
+    }
+
+    if (showContextMenu && (myRole?.canManageConversations ?: false)) {
+        ConversationContextMenu(
+            convo = convo,
+            serverId = serverId,
+            serverViewModel = serverViewModel,
+            onDismiss = { showContextMenu = false },
+            offset = popupOffset,
+            myRole = myRole,
+            onEditConversation = onEditConversation,
+            onDeleteConversation = onDeleteConversation
+        )
+    }
+}
+
+@Composable
+fun ConversationContextMenu(
+    convo: Conversation,
+    serverId: Int,
+    serverViewModel: ServerViewModel,
+    onDismiss: () -> Unit,
+    offset: Offset,
+    myRole : Role?,
+    onEditConversation: (Conversation) -> Unit,
+    onDeleteConversation: (String) -> Unit
+) {
+    Popup(
+        alignment = Alignment.TopStart,
+        offset = IntOffset(offset.x.toInt(), offset.y.toInt()),
+        onDismissRequest = { onDismiss() }
+    ) {
+        Column(
+            modifier = Modifier
+                .clip(RoundedCornerShape(14.dp))
+                .background(MaterialTheme.colorScheme.primary)
+                .padding(16.dp)
+                .width(100.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.edit),
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier
+                    .clickable(
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() }
+                    ) {
+                        onDismiss()
+                        onEditConversation(convo)
+                    }
+                    .padding(12.dp)
+            )
+
+            if (myRole?.name == "OWNER") {
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                    thickness = 1.dp,
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                )
+
+                Text(
+                    text = stringResource(R.string.delete),
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier
+                        .clickable(
+                            indication = null,
+                            interactionSource = remember { MutableInteractionSource() }
+                        ) {
+                            onDismiss()
+                            onDeleteConversation(convo.title)
+                        }
+                        .padding(12.dp)
                 )
             }
         }
@@ -338,7 +510,9 @@ fun CreateChatDialog(
                     text = stringResource(R.string.cancel),
                     onClick = onDismiss,
                     containerColor = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.weight(1f).height(48.dp)
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp)
                 )
 
                 PrimaryButton(
@@ -356,7 +530,9 @@ fun CreateChatDialog(
                         }
                     },
                     enabled = chatName.isNotBlank(),
-                    modifier = Modifier.weight(1f).height(48.dp)
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp)
                 )
             }
         }

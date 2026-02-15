@@ -54,6 +54,9 @@ class ServerViewModel @Inject constructor(
     private val _generatedToken = MutableStateFlow<String?>(null)
     val generatedToken = _generatedToken.asStateFlow()
 
+    private val _currentServerId = MutableStateFlow<Int?>(null)
+    val currentServerId: StateFlow<Int?> = _currentServerId.asStateFlow()
+
     private val _serverInvites = MutableStateFlow<List<Invite.UserInvite>>(emptyList())
     val serverInvites: StateFlow<List<Invite.UserInvite>> = _serverInvites.asStateFlow()
 
@@ -469,17 +472,40 @@ class ServerViewModel @Inject constructor(
             )
     }
 
+    fun loadServerIfNeeded(serverId: Int) {
+        if (_currentServerId.value != serverId) {
+            _currentServerId.value = serverId
+            loadServerData(serverId)
+        }
+    }
+
+
     fun loadServerData(serverId: Int) {
         viewModelScope.launch {
-            serverRepository.loadServerData(serverId).fold(
-                onSuccess = { (chats, members) ->
+            _isLoading.value = true
+            _error.value = null
+
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    serverRepository.loadServerData(serverId)
+                }
+
+                result.onSuccess { (chats, members) ->
                     _conversations.value = chats
                     _members.value = members
-                },
-                onFailure = { error ->
-                    Log.e("ServerVM", "Ошибка: ${error.message}")
+                    Log.i("ServerViewModel", "Chats loaded: ${chats.size}, members: ${members.size}")
+                }.onFailure { exception ->
+                    Log.e("ServerViewModel", "Error load server data ${exception.message}")
+                    _serverEvents.emit(ServerEvent.Error(exception.getServerErrorMessage()))
                 }
-            )
+            } catch (e: Exception) {
+                Log.e("ServerViewModel", "Exception loading server data: ${e.message}", e)
+                val errorMsg = e.message ?: "Failed to load server data"
+                _error.value = errorMsg
+                _serverEvents.emit(ServerEvent.Error(errorMsg))
+            } finally {
+                _isLoading.value = false
+            }
         }
     }
 
@@ -489,19 +515,94 @@ class ServerViewModel @Inject constructor(
         isPrivate: Boolean = false
     ) {
         viewModelScope.launch {
-            serverRepository.createConversation(serverId, title, isPrivate).fold(
-                onSuccess = { newChat ->
-                    val updatedChats = _conversations.value.toMutableList().apply {
-                        add(0, newChat)
-                    }
-                    _conversations.value = updatedChats
-                    Log.d("ServerVM", "Чат создан: $title")
-                },
-                onFailure = { error ->
-                    Log.e("ServerVM", "createConversation error: ${error.message}")
+            _isLoading.value = true
+            _error.value = null
+
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    serverRepository.createConversation(serverId, title, isPrivate)
                 }
-            )
+
+                result.onSuccess { newChat ->
+                    _conversations.update { currentChats ->
+                        (listOf(newChat) + currentChats)
+                    }
+                    Log.i("ServerViewModel", "Chat created $title")
+                }.onFailure { exception ->
+                    _serverEvents.emit(ServerEvent.Error(exception.getServerErrorMessage()))
+                }
+            } catch (e: Exception) {
+                Log.e("ServerViewModel", "Exception creating conversation: ${e.message}", e)
+                val errorMsg = e.message ?: "Failed to create conversation"
+                _error.value = errorMsg
+                _serverEvents.emit(ServerEvent.Error(errorMsg))
+            } finally {
+                _isLoading.value = false
+            }
         }
     }
 
+    fun updateConversation(serverId: Int, conversationId: Long, newTitle: String) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    serverRepository.updateConversationTitle(serverId, conversationId, newTitle)
+                }
+
+                result.onSuccess { updatedConversation ->
+                    _conversations.update { currentChats ->
+                        currentChats.map { convo ->
+                            if (convo.id == conversationId) {
+                                convo.copy(title = newTitle)
+                            } else {
+                                convo
+                            }
+                        }
+                    }
+                    Log.i("ServerViewModel", "Chat updated: $conversationId -> $newTitle")
+                }.onFailure { exception ->
+                    _serverEvents.emit(ServerEvent.Error(exception.getServerErrorMessage()))
+                }
+            } catch (e: Exception) {
+                Log.e("ServerViewModel", "Exception updating conversation: ${e.message}", e)
+                val errorMsg = e.message ?: "Failed to update conversation"
+                _error.value = errorMsg
+                _serverEvents.emit(ServerEvent.Error(errorMsg))
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun deleteConversation(serverId: Int, conversationId: Long) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    serverRepository.deleteConversation(serverId, conversationId)
+                }
+
+                result.onSuccess {
+                    _conversations.update { currentChats ->
+                        currentChats.filter { it.id != conversationId }
+                    }
+                    Log.i("ServerViewModel", "Chat deleted $conversationId")
+                }.onFailure { exception ->
+                    _serverEvents.emit(ServerEvent.Error(exception.getServerErrorMessage()))
+                }
+            } catch (e: Exception) {
+                Log.e("ServerViewModel", "Exception deleting conversation: ${e.message}", e)
+                val errorMsg = e.message ?: "Failed to delete conversation"
+                _error.value = errorMsg
+                _serverEvents.emit(ServerEvent.Error(errorMsg))
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
 }

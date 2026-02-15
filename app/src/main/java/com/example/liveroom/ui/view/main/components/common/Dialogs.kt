@@ -47,6 +47,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.example.liveroom.R
 import com.example.liveroom.data.model.ServerFormData
+import com.example.liveroom.data.remote.dto.Conversation
 import com.example.liveroom.data.remote.dto.Role
 import com.example.liveroom.data.remote.dto.Server
 import com.example.liveroom.di.AppConfig
@@ -536,6 +537,162 @@ fun ConfirmationDialog(
                         icon = null
                     )
                 }
+            }
+        }
+    }
+}
+
+
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun EditConversationDialog(
+    conversation: Conversation,
+    serverId: Int,
+    serverViewModel: ServerViewModel,
+    onDismiss: () -> Unit
+) {
+    var newTitle by remember { mutableStateOf(conversation.title) }
+    var isError by remember { mutableStateOf(false) }
+
+    BasicAlertDialog(
+        onDismissRequest = onDismiss,
+        modifier = Modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.background)
+    ) {
+        Column(
+            modifier = Modifier.padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Text(
+                stringResource(R.string.edit_conversation),
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center
+            )
+
+            CustomTextField(
+                value = newTitle,
+                onValueChange = {
+                    newTitle = it
+                    isError = it.isBlank()
+                },
+                label = stringResource(R.string.chat_name),
+                isError = isError,
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                PrimaryButton(
+                    text = stringResource(R.string.cancel),
+                    onClick = onDismiss,
+                    containerColor = MaterialTheme.colorScheme.error,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp)
+                )
+
+                PrimaryButton(
+                    text = stringResource(R.string.save),
+                    onClick = {
+                        if (newTitle.isNotBlank() && newTitle != conversation.title) {
+                            serverViewModel.updateConversation(
+                                serverId = serverId,
+                                conversationId = conversation.id,
+                                newTitle = newTitle
+                            )
+                            onDismiss()
+                        } else {
+                            isError = true
+                        }
+                    },
+                    enabled = newTitle.isNotBlank() && newTitle != conversation.title,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp)
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DeleteConversationDialog(
+    conversationName: String,
+    serverId: Int,
+    serverViewModel: ServerViewModel,
+    conversationId: Long,
+    onDismiss: () -> Unit
+) {
+    var confirmText by remember { mutableStateOf("") }
+    val isConfirmed = confirmText == conversationName
+
+    BasicAlertDialog(
+        onDismissRequest = onDismiss,
+        modifier = Modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.background)
+    ) {
+        Column(
+            modifier = Modifier.padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                "${stringResource(R.string.delete_conversation)}: \n${conversationName}",
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center
+            )
+
+            Text(
+                stringResource(R.string.confirm_delete_conversation, conversationName),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+
+            CustomTextField(
+                value = confirmText,
+                onValueChange = { confirmText = it },
+                label = stringResource(R.string.type_name_to_confirm, conversationName),
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                PrimaryButton(
+                    text = stringResource(R.string.cancel),
+                    onClick = onDismiss,
+                    containerColor = MaterialTheme.colorScheme.error,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp)
+                )
+
+                PrimaryButton(
+                    text = stringResource(R.string.delete),
+                    onClick = {
+                        serverViewModel.deleteConversation(
+                            serverId = serverId,
+                            conversationId = conversationId
+                        )
+                        onDismiss()
+                    },
+                    enabled = isConfirmed,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp)
+                )
             }
         }
     }

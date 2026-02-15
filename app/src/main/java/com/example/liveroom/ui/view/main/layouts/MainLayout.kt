@@ -133,7 +133,10 @@ fun MainLayout(
                         ProfileComponent(userViewModel)
                     }
                     "server" -> {
-                        ServerComponent(selectedServer ?: null, serverViewModel)
+                        if(selectedServer != null) {
+                            serverViewModel.loadServerIfNeeded(selectedServer?.id!!)
+                            ServerComponent(selectedServer ?: null, serverViewModel)
+                        }
                     }
                 }
             }

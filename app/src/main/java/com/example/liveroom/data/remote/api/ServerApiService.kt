@@ -120,4 +120,17 @@ interface ServerApiService {
         @Body request: CreateConversationRequest
     ): Conversation
 
+
+    @PUT("api/servers/{serverId}/conversations/{conversationId}")
+    suspend fun updateConversation(
+        @Path("serverId") serverId: Int,
+        @Path("conversationId") conversationId: Long,
+        @Body request: Map<String, String>
+    ): Conversation
+
+    @DELETE("api/servers/{serverId}/conversations/{conversationId}")
+    suspend fun deleteConversation(
+        @Path("serverId") serverId: Int,
+        @Path("conversationId") conversationId: Long
+    ): Response<Unit>
 }

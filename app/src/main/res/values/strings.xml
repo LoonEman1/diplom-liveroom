@@ -91,4 +91,9 @@
     <string name="chat_name">Chat name</string>
     <string name="private_chat">Private chat</string>
     <string name="text_channels">Text channels</string>
+    <string name="delete_conversation">Deleting a text channel</string>
+    <string name="confirm_delete_conversation">Confirm deletion of text chat</string>
+    <string name="type_name_to_confirm">Enter the text channel name  to confirm</string>
+    <string name="edit_conversation">Editing text channel</string>
+    <string name="save">Save</string>
 </resources>

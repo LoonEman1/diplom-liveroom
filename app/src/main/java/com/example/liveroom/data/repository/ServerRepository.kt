@@ -278,7 +278,7 @@ class ServerRepository @Inject constructor(
             val conversations = apiService.getServerConversations(serverId)
             Result.success(conversations)
         } catch (e: Exception) {
-            Log.e("ServerRepo", "Ошибка чатов: ${e.message}")
+            Log.e("ServerRepo", "Chat error: ${e.message}")
             Result.failure(e)
         }
     }
@@ -287,7 +287,7 @@ class ServerRepository @Inject constructor(
             val members = apiService.getServerMembers(serverId)
             Result.success(members)
         } catch (e: Exception) {
-            Log.e("ServerRepo", "Ошибка членов: ${e.message}")
+            Log.e("ServerRepo", "Members error: ${e.message}")
             Result.failure(e)
         }
     }
@@ -310,7 +310,7 @@ class ServerRepository @Inject constructor(
                 Result.failure(Exception("Network error"))
             }
         } catch (e: Exception) {
-            Log.e("ServerRepo", "loadServerData ошибка: ${e.message}")
+            Log.e("ServerRepo", "loadServerData error: ${e.message}")
             Result.failure(e)
         }
     }
@@ -330,7 +330,39 @@ class ServerRepository @Inject constructor(
             val conversation = apiService.createConversation(serverId, request)
             Result.success(conversation)
         } catch (e: Exception) {
-            Log.e("ServerRepo", "Ошибка создания чата: ${e.message}")
+            Log.e("ServerRepo", "Chat creation error ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updateConversationTitle(
+        serverId: Int,
+        conversationId: Long,
+        title: String
+    ): Result<Conversation> {
+        return try {
+            val request = mapOf("title" to title)
+            val updatedConversation = apiService.updateConversation(serverId, conversationId, request)
+            Result.success(updatedConversation)
+        } catch (e: Exception) {
+            Log.e("ServerRepo", "Chat update error ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deleteConversation(
+        serverId: Int,
+        conversationId: Long
+    ): Result<Unit> {
+        return try {
+            val response = apiService.deleteConversation(serverId, conversationId)
+            if (response.isSuccessful) {
+                Result.success(Unit)
+            } else {
+                Result.failure(HttpException(response))
+            }
+        } catch (e: Exception) {
+            Log.e("ServerRepo", "Chat delete error ${e.message}")
             Result.failure(e)
         }
     }
