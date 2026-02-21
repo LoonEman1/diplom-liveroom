@@ -96,4 +96,9 @@
     <string name="type_name_to_confirm">Enter the text channel name  to confirm</string>
     <string name="edit_conversation">Editing text channel</string>
     <string name="save">Save</string>
+    <string name="message">Message...</string>
+    <string name="message_deleted">Message has been deleted</string>
+    <string name="me">Me</string>
+    <string name="send">Send</string>
+    <string name="text_chats">Text Chats</string>
 </resources>

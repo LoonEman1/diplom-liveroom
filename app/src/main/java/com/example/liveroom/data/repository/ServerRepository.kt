@@ -11,6 +11,8 @@ import com.example.liveroom.data.remote.dto.CreateServerRequest
 import com.example.liveroom.data.remote.dto.Invite
 import com.example.liveroom.data.remote.dto.InviteUserRequest
 import com.example.liveroom.data.remote.dto.JoinByTokenRequest
+import com.example.liveroom.data.remote.dto.Message
+import com.example.liveroom.data.remote.dto.SendMessageRequest
 import com.example.liveroom.data.remote.dto.Server
 import com.example.liveroom.data.remote.dto.ServerMember
 import com.example.liveroom.data.remote.dto.UpdateServerRequest
@@ -366,4 +368,34 @@ class ServerRepository @Inject constructor(
             Result.failure(e)
         }
     }
+
+    suspend fun getMessages(
+        serverId: Long,
+        conversationId: Long,
+        limit: Int = 50,
+        beforeMessageId: Long? = null
+    ): Result<List<Message>> {
+        return try {
+            val messages = apiService.getMessages(serverId, conversationId, limit, beforeMessageId)
+            Result.success(messages)
+        } catch (e: Exception) {
+            Log.e("ServerRepo", "Messages error: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    suspend fun sendMessage(
+        serverId: Long,
+        conversationId: Long,
+        request: SendMessageRequest
+    ): Result<Message> {
+        return try {
+            val message = apiService.sendMessage(serverId, conversationId, request)
+            Result.success(message)
+        } catch (e: Exception) {
+            Log.e("ServerRepo", "Send message error: ${e.message}")
+            Result.failure(e)
+        }
+    }
 }
+

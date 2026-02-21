@@ -77,7 +77,7 @@ import com.example.liveroom.ui.components.PrimaryButton
 import com.example.liveroom.ui.theme.ButtonColor
 import com.example.liveroom.ui.theme.ErrorRed
 import com.example.liveroom.ui.theme.linkTextColor
-import androidx.compose.foundation.gestures.detectTapGestures  // Добавьте!
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.window.Popup
@@ -89,7 +89,8 @@ import kotlin.math.roundToInt
 @Composable
 fun ServerComponent(
     server: Server?,
-    serverViewModel: ServerViewModel
+    serverViewModel: ServerViewModel,
+    onTabChange: (String) -> Unit
 ) {
     var showCreateChatDialog by remember { mutableStateOf(false) }
 
@@ -199,7 +200,7 @@ fun ServerComponent(
             )
             Spacer(modifier = Modifier.width(12.dp))
             Text(
-                "Text Chats",
+                stringResource(R.string.text_chats),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontWeight = FontWeight.Medium
@@ -208,8 +209,14 @@ fun ServerComponent(
 
         if (conversations.isNotEmpty()) {
             Spacer(modifier = Modifier.height(16.dp))
-            LazyColumn(modifier = Modifier.padding(horizontal = 16.dp)) {
+            LazyColumn() {
                 items(conversations) { convo ->
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.primary,
+                        thickness = 1.dp,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                    )
                     ConversationItem(
                         convo = convo,
                         serverId = server?.id!!,
@@ -223,7 +230,12 @@ fun ServerComponent(
                             deletingConversationId = convo.id
                             showDeleteDialog = true
                             deletingConversationName = convo.title
-                        }
+                        },
+                        onClickConversation = { convoId ->
+                            serverViewModel.setCurrentConversation(convoId)
+                            onTabChange("chat")
+                        },
+                        modifier = Modifier.padding(horizontal = 16.dp)
                     )
                 }
             }
@@ -289,25 +301,27 @@ fun ConversationItem(
     serverViewModel: ServerViewModel,
     myRole: Role?,
     onEditConversation: (Conversation) -> Unit,
-    onDeleteConversation: (String) -> Unit
+    onDeleteConversation: (String) -> Unit,
+    onClickConversation: (Long) -> Unit = {},
+    modifier: Modifier
 ) {
     var showContextMenu by remember { mutableStateOf(false) }
     var popupOffset by remember { mutableStateOf(Offset.Zero) }
 
-    Card(
-        modifier = Modifier
+    Column(
+        modifier = modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
             .pointerInput(Unit) {
                 detectTapGestures(
-                    onTap = {  },
+                    onTap = { onClickConversation(convo.id) },
                     onLongPress = { offset ->
                         popupOffset = offset
                         showContextMenu = true
                     }
                 )
-            },
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondary)
+            }
+            .clip(RoundedCornerShape(12.dp))
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(

@@ -6,6 +6,8 @@ import com.example.liveroom.data.remote.dto.CreateServerRequest
 import com.example.liveroom.data.remote.dto.Invite
 import com.example.liveroom.data.remote.dto.InviteUserRequest
 import com.example.liveroom.data.remote.dto.JoinByTokenRequest
+import com.example.liveroom.data.remote.dto.Message
+import com.example.liveroom.data.remote.dto.SendMessageRequest
 import com.example.liveroom.data.remote.dto.Server
 import com.example.liveroom.data.remote.dto.ServerMember
 import com.example.liveroom.data.remote.dto.UpdateServerRequest
@@ -23,6 +25,7 @@ import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Part
 import retrofit2.http.Path
+import retrofit2.http.Query
 
 interface ServerApiService {
     @GET("api/users/{userId}/servers")
@@ -133,4 +136,36 @@ interface ServerApiService {
         @Path("serverId") serverId: Int,
         @Path("conversationId") conversationId: Long
     ): Response<Unit>
+
+    @GET("api/servers/{serverId}/conversations/{conversationId}/messages")
+    suspend fun getMessages(
+        @Path("serverId") serverId: Long,
+        @Path("conversationId") conversationId: Long,
+        @Query("limit") limit: Int = 50,
+        @Query("beforeMessageId") beforeMessageId: Long? = null
+    ): List<Message>
+
+    @POST("api/servers/{serverId}/conversations/{conversationId}/messages")
+    suspend fun sendMessage(
+        @Path("serverId") serverId: Long,
+        @Path("conversationId") conversationId: Long,
+        @Body request: SendMessageRequest
+    ): Message
+
+    @PUT("api/servers/{serverId}/conversations/{conversationId}/messages/{messageId}")
+    suspend fun updateMessage(
+        @Path("serverId") serverId: Long,
+        @Path("conversationId") conversationId: Long,
+        @Path("messageId") messageId: Long,
+        @Body request: SendMessageRequest
+    ): Message
+
+    // 4. Удалить сообщение
+    @DELETE("api/servers/{serverId}/conversations/{conversationId}/messages/{messageId}")
+    suspend fun deleteMessage(
+        @Path("serverId") serverId: Long,
+        @Path("conversationId") conversationId: Long,
+        @Path("messageId") messageId: Long
+    ): Response<Unit>
 }
+

@@ -13,11 +13,15 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import android.net.Uri
 import android.util.Log
+import androidx.compose.runtime.mutableStateOf
+import com.example.liveroom.data.local.WebSocketManager
 import com.example.liveroom.data.model.ServerError
 import com.example.liveroom.data.model.ServerEvent
 import com.example.liveroom.data.remote.dto.ApiErrorResponse
 import com.example.liveroom.data.remote.dto.Conversation
 import com.example.liveroom.data.remote.dto.Invite
+import com.example.liveroom.data.remote.dto.Message
+import com.example.liveroom.data.remote.dto.SendMessageRequest
 import com.example.liveroom.data.remote.dto.Server
 import com.example.liveroom.data.remote.dto.ServerMember
 import com.example.liveroom.data.repository.ServerRepository
@@ -33,7 +37,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class ServerViewModel @Inject constructor(
-    private val serverRepository: ServerRepository
+    private val serverRepository: ServerRepository,
+    private val webSocketManager: WebSocketManager
 ) : ViewModel() {
 
     private val _servers = MutableStateFlow<List<Server>>(emptyList())
@@ -68,6 +73,13 @@ class ServerViewModel @Inject constructor(
 
     private val _selectedServer = MutableStateFlow<Server?>(null)
     val selectedServer = _selectedServer.asStateFlow()
+
+    private val _currentConversationId = MutableStateFlow<Long?>(null)
+    val currentConversationId: StateFlow<Long?> = _currentConversationId.asStateFlow()
+
+    private val _messages = MutableStateFlow<List<Message>>(emptyList())
+    val messages: StateFlow<List<Message>> = _messages.asStateFlow()
+
 
     fun setSelectedServerId(selectedServerId: Int) {
         _selectedServerId.value = selectedServerId
@@ -605,4 +617,103 @@ class ServerViewModel @Inject constructor(
             }
         }
     }
+
+
+    private fun loadMessages(conversationId: Long) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+            try {
+                val serverId = selectedServer.value?.id?.toLong() ?: return@launch
+                val result = withContext(Dispatchers.IO) {
+                    serverRepository.getMessages(serverId, conversationId, limit = 50)
+                }
+                result.onSuccess { messages ->
+                    _messages.value = messages
+                    Log.d("ServerVM", "Loaded ${messages.size} messages")
+                }.onFailure { exception ->
+                    _serverEvents.emit(ServerEvent.Error(exception.getServerErrorMessage()))
+                }
+            } catch (e: Exception) {
+                Log.e("ServerVM", "Load messages error: ${e.message}")
+                _serverEvents.emit(ServerEvent.Error(e.message ?: "Load failed"))
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun sendMessage(conversationId: Long, content: String) {
+        if (content.isBlank()) return
+
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+            try {
+                val serverId = selectedServer.value?.id?.toLong() ?: return@launch
+                val request = SendMessageRequest(content = content)
+                val result = withContext(Dispatchers.IO) {
+                    serverRepository.sendMessage(serverId, conversationId, request)
+                }
+                result.onSuccess { message ->
+                    _messages.value = _messages.value + message
+                    Log.d("ServerVM", "Message sent: ${message.id}")
+                }.onFailure { exception ->
+                    _serverEvents.emit(ServerEvent.Error(exception.getServerErrorMessage()))
+                }
+            } catch (e: Exception) {
+                Log.e("ServerVM", "Send error: ${e.message}")
+                _serverEvents.emit(ServerEvent.Error(e.message ?: "Send failed"))
+            } finally {
+                _isLoading.value = false
+            }
+        }
+
+        val serverId = selectedServer.value?.id?.toLong() ?: return
+        webSocketManager.send(
+            "/app/servers/$serverId/conversations/$conversationId/messages",
+            """{"content": "${content.replace("\"", "\\\"")}"}"""
+        )
+    }
+
+    fun onWebSocketMessage(text: String) {
+        viewModelScope.launch(Dispatchers.Default) {
+            try {
+                val json = Gson().fromJson(text, Map::class.java) as Map<String, Any?>
+                val type = json["type"] as? String ?: return@launch
+
+                when (type) {
+                    "message.created" -> {
+                        val payloadJson = Gson().toJson(json["payload"])
+                        val payload = Gson().fromJson(payloadJson, Message::class.java)
+                        _messages.value = _messages.value + payload
+                    }
+
+                    "message.updated" -> {
+                        val payloadJson = Gson().toJson(json["payload"])
+                        val payload = Gson().fromJson(payloadJson, Message::class.java)
+                        _messages.value = _messages.value.map {
+                            if (it.id == payload.id) payload else it
+                        }
+                    }
+
+                    "message.deleted" -> {
+                        val payloadJson = Gson().toJson(json["payload"])
+                        val payload = Gson().fromJson(payloadJson, Message::class.java)
+                        _messages.value = _messages.value.filter { it.id != payload.id }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("ServerVM", "WS parse error: $text", e)
+            }
+        }
+    }
+
+    fun setCurrentConversation(conversationId: Long) {
+        _currentConversationId.value = conversationId
+        loadMessages(conversationId)
+        val serverId = selectedServer.value?.id?.toLong() ?: return
+        webSocketManager.subscribe("/topic/servers/$serverId/conversations/$conversationId")
+    }
 }
+

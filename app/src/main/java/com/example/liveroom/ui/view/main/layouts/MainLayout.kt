@@ -51,12 +51,15 @@ fun MainLayout(
                 is UserEvent.ProfileUpdated -> {
                     Toast.makeText(context, textUserUpdate, Toast.LENGTH_SHORT).show()
                 }
+
                 is UserEvent.Error -> {
                     Toast.makeText(context, event.message, Toast.LENGTH_LONG).show()
                 }
+
                 is UserEvent.UserLoaded -> {
 
                 }
+
                 is UserEvent.UserLogOuted -> {
                     Toast.makeText(context, successLogout, Toast.LENGTH_SHORT).show()
                     navController.navigate(Screen.LoginScreen.route) {
@@ -65,6 +68,7 @@ fun MainLayout(
                         popUpTo(Screen.LoginScreen.route) { inclusive = true }
                     }
                 }
+
                 is UserEvent.AvatarUpdated -> {
                     Toast.makeText(context, avatarUpdated, Toast.LENGTH_SHORT).show()
                 }
@@ -89,7 +93,7 @@ fun MainLayout(
         ) {
             LeftNavigation(
                 onTabSelected = { selectedTab = it },
-                onServerSelected = {serverViewModel.setSelectedServer(it)},
+                onServerSelected = { serverViewModel.setSelectedServer(it) },
                 serverViewModel = serverViewModel,
                 userViewModel = userViewModel
             )
@@ -107,7 +111,11 @@ fun MainLayout(
                 )
             },
             topBar = {
-                TopDynamicHeader(selectedTab = selectedTab, userViewModel = userViewModel, selectedServer)
+                TopDynamicHeader(
+                    selectedTab = selectedTab,
+                    userViewModel = userViewModel,
+                    selectedServer
+                )
             }
         ) { innerPadding ->
             Box(modifier = Modifier.padding(innerPadding)) {
@@ -125,17 +133,45 @@ fun MainLayout(
                     "home" -> {
                         HomeComponent()
                     }
+
                     "invites" -> {
                         val invites by serverViewModel.serverInvites.collectAsState()
                         Invites(invites, serverViewModel = serverViewModel)
                     }
+
                     "profile" -> {
                         ProfileComponent(userViewModel)
                     }
+
                     "server" -> {
-                        if(selectedServer != null) {
+                        if (selectedServer != null) {
                             serverViewModel.loadServerIfNeeded(selectedServer?.id!!)
-                            ServerComponent(selectedServer ?: null, serverViewModel)
+                            ServerComponent(
+                                selectedServer ?: null,
+                                serverViewModel,
+                                onTabChange = { newTab ->
+                                    selectedTab = newTab
+                                }
+                            )
+                        }
+                    }
+
+                    "chat" -> {
+                        val currentConversationId by serverViewModel.currentConversationId.collectAsState()
+                        val messages by serverViewModel.messages.collectAsState()
+                        val currentUserId = userViewModel.userInfo.value?.userId ?: -1
+                        currentConversationId?.let { convoId ->
+                            currentConversationId?.let { convoId ->
+                                ChatScreen(
+                                    conversationId = convoId,
+                                    messages = messages,
+                                    serverViewModel = serverViewModel,
+                                    currentUserId = currentUserId,
+                                    onBackToServer = {
+                                        selectedTab = "server"
+                                    }
+                                )
+                            }
                         }
                     }
                 }
