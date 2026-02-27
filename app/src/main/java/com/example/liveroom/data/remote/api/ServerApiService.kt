@@ -3,6 +3,7 @@ package com.example.liveroom.data.remote.api
 import com.example.liveroom.data.remote.dto.Conversation
 import com.example.liveroom.data.remote.dto.CreateConversationRequest
 import com.example.liveroom.data.remote.dto.CreateServerRequest
+import com.example.liveroom.data.remote.dto.EditMessageRequest
 import com.example.liveroom.data.remote.dto.Invite
 import com.example.liveroom.data.remote.dto.InviteUserRequest
 import com.example.liveroom.data.remote.dto.JoinByTokenRequest
@@ -152,16 +153,15 @@ interface ServerApiService {
         @Body request: SendMessageRequest
     ): Message
 
-    @PUT("api/servers/{serverId}/conversations/{conversationId}/messages/{messageId}")
-    suspend fun updateMessage(
+    @PUT("/api/servers/{serverId}/conversations/{conversationId}/messages/{messageId}")
+    suspend fun editMessage(
         @Path("serverId") serverId: Long,
         @Path("conversationId") conversationId: Long,
         @Path("messageId") messageId: Long,
-        @Body request: SendMessageRequest
+        @Body request: EditMessageRequest
     ): Message
 
-    // 4. Удалить сообщение
-    @DELETE("api/servers/{serverId}/conversations/{conversationId}/messages/{messageId}")
+    @DELETE("/api/servers/{serverId}/conversations/{conversationId}/messages/{messageId}")
     suspend fun deleteMessage(
         @Path("serverId") serverId: Long,
         @Path("conversationId") conversationId: Long,

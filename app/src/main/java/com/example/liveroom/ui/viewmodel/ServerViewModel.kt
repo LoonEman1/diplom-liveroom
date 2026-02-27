@@ -715,5 +715,65 @@ class ServerViewModel @Inject constructor(
         val serverId = selectedServer.value?.id?.toLong() ?: return
         webSocketManager.subscribe("/topic/servers/$serverId/conversations/$conversationId")
     }
+
+    fun editMessage(conversationId: Long, messageId: Long, newContent: String) {
+        if (newContent.isBlank()) return
+        viewModelScope.launch {
+            _error.value = null
+            try {
+                val serverId = selectedServer.value?.id?.toLong() ?: return@launch
+
+                val result = withContext(Dispatchers.IO) {
+                    serverRepository.editMessage(serverId, conversationId, messageId, newContent)
+                }
+
+                result.onSuccess { updatedMessage ->
+                    // Мгновенно обновляем локальный список
+                    _messages.update { currentMessages ->
+                        currentMessages.map {
+                            if (it.id == messageId) updatedMessage else it
+                        }
+                    }
+                    Log.d("ServerVM", "Message edited: $messageId")
+                }.onFailure { exception ->
+                    _serverEvents.emit(ServerEvent.Error(exception.getServerErrorMessage()))
+                }
+            } catch (e: Exception) {
+                Log.e("ServerVM", "Edit error: ${e.message}")
+                _serverEvents.emit(ServerEvent.Error(e.message ?: "Edit failed"))
+            }
+        }
+    }
+
+    fun deleteMessage(conversationId: Long, messageId: Long) {
+        viewModelScope.launch {
+            _error.value = null
+            try {
+                val serverId = selectedServer.value?.id?.toLong() ?: return@launch
+
+                val result = withContext(Dispatchers.IO) {
+                    serverRepository.deleteMessage(serverId, conversationId, messageId)
+                }
+
+                result.onSuccess {
+                    _messages.update { currentMessages ->
+                        currentMessages.map {
+                            if (it.id == messageId) {
+                                it.copy(content = null, deletedAt = System.currentTimeMillis().toString())
+                            } else {
+                                it
+                            }
+                        }
+                    }
+                    Log.d("ServerVM", "Message deleted: $messageId")
+                }.onFailure { exception ->
+                    _serverEvents.emit(ServerEvent.Error(exception.getServerErrorMessage()))
+                }
+            } catch (e: Exception) {
+                Log.e("ServerVM", "Delete error: ${e.message}")
+                _serverEvents.emit(ServerEvent.Error(e.message ?: "Delete failed"))
+            }
+        }
+    }
 }
 

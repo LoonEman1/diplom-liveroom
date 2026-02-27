@@ -101,4 +101,9 @@
     <string name="me">Me</string>
     <string name="send">Send</string>
     <string name="text_chats">Text Chats</string>
+    <string name="copy">Copy</string>
+    <string name="delete_message_title">Deleting a message</string>
+    <string name="delete_message_confirm">Are you sure you want to delete this message?</string>
+    <string name="edited_message">Edited</string>
+    <string name="deleted_in">Deleted in</string>
 </resources>

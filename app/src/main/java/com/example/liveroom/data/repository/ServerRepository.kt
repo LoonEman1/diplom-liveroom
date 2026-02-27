@@ -8,6 +8,7 @@ import com.example.liveroom.data.remote.api.ServerApiService
 import com.example.liveroom.data.remote.dto.Conversation
 import com.example.liveroom.data.remote.dto.CreateConversationRequest
 import com.example.liveroom.data.remote.dto.CreateServerRequest
+import com.example.liveroom.data.remote.dto.EditMessageRequest
 import com.example.liveroom.data.remote.dto.Invite
 import com.example.liveroom.data.remote.dto.InviteUserRequest
 import com.example.liveroom.data.remote.dto.JoinByTokenRequest
@@ -394,6 +395,40 @@ class ServerRepository @Inject constructor(
             Result.success(message)
         } catch (e: Exception) {
             Log.e("ServerRepo", "Send message error: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    suspend fun editMessage(
+        serverId: Long,
+        conversationId: Long,
+        messageId: Long,
+        content: String
+    ): Result<Message> {
+        return try {
+            val request = EditMessageRequest(content = content)
+            val message = apiService.editMessage(serverId, conversationId, messageId, request)
+            Result.success(message)
+        } catch (e: Exception) {
+            Log.e("ServerRepo", "Edit message error: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deleteMessage(
+        serverId: Long,
+        conversationId: Long,
+        messageId: Long
+    ): Result<Unit> {
+        return try {
+            val response = apiService.deleteMessage(serverId, conversationId, messageId)
+            if (response.isSuccessful) {
+                Result.success(Unit)
+            } else {
+                Result.failure(HttpException(response))
+            }
+        } catch (e: Exception) {
+            Log.e("ServerRepo", "Delete message error: ${e.message}")
             Result.failure(e)
         }
     }
