@@ -27,6 +27,8 @@ import com.example.liveroom.data.remote.dto.ServerMember
 import com.example.liveroom.data.repository.ServerRepository
 import com.example.liveroom.util.getServerErrorMessage
 import com.google.gson.Gson
+import com.google.gson.Strictness
+import com.google.gson.stream.JsonReader
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -79,7 +81,6 @@ class ServerViewModel @Inject constructor(
 
     private val _messages = MutableStateFlow<List<Message>>(emptyList())
     val messages: StateFlow<List<Message>> = _messages.asStateFlow()
-
 
     fun setSelectedServerId(selectedServerId: Int) {
         _selectedServerId.value = selectedServerId
@@ -302,7 +303,6 @@ class ServerViewModel @Inject constructor(
         onSuccess: () -> Unit
     ) {
         viewModelScope.launch {
-            _isLoading.value = true
             _error.value = null
             try {
                 if(!username.isNullOrBlank()) {
@@ -322,8 +322,6 @@ class ServerViewModel @Inject constructor(
                     _serverEvents.emit(ServerEvent.ValidationError(ServerError.EmptyUsername))
             } catch(e : Exception) {
                 _serverEvents.emit(ServerEvent.Error(e.message ?: "Unknown error"))
-            } finally {
-                _isLoading.value = false
             }
         }
     }
@@ -629,7 +627,7 @@ class ServerViewModel @Inject constructor(
                     serverRepository.getMessages(serverId, conversationId, limit = 50)
                 }
                 result.onSuccess { messages ->
-                    _messages.value = messages
+                    _messages.value = messages.sortedBy { it.createdAt }
                     Log.d("ServerVM", "Loaded ${messages.size} messages")
                 }.onFailure { exception ->
                     _serverEvents.emit(ServerEvent.Error(exception.getServerErrorMessage()))
@@ -647,7 +645,6 @@ class ServerViewModel @Inject constructor(
         if (content.isBlank()) return
 
         viewModelScope.launch {
-            _isLoading.value = true
             _error.value = null
             try {
                 val serverId = selectedServer.value?.id?.toLong() ?: return@launch
@@ -656,7 +653,7 @@ class ServerViewModel @Inject constructor(
                     serverRepository.sendMessage(serverId, conversationId, request)
                 }
                 result.onSuccess { message ->
-                    _messages.value = _messages.value + message
+                    _messages.value = (_messages.value + message).sortedBy { it.createdAt }
                     Log.d("ServerVM", "Message sent: ${message.id}")
                 }.onFailure { exception ->
                     _serverEvents.emit(ServerEvent.Error(exception.getServerErrorMessage()))
@@ -664,8 +661,6 @@ class ServerViewModel @Inject constructor(
             } catch (e: Exception) {
                 Log.e("ServerVM", "Send error: ${e.message}")
                 _serverEvents.emit(ServerEvent.Error(e.message ?: "Send failed"))
-            } finally {
-                _isLoading.value = false
             }
         }
 
@@ -679,27 +674,37 @@ class ServerViewModel @Inject constructor(
     fun onWebSocketMessage(text: String) {
         viewModelScope.launch(Dispatchers.Default) {
             try {
-                val json = Gson().fromJson(text, Map::class.java) as Map<String, Any?>
+                val jsonStart = text.indexOf("\n\n") + 2
+                val jsonPayload = if (jsonStart < text.length) {
+                    text.substring(jsonStart).trim().trimEnd('\u0000')
+                } else {
+                    Log.w("ServerVM", "No JSON payload found: $text")
+                    return@launch
+                }
+
+                Log.d("ServerVM", "Clean JSON: $jsonPayload")
+
+                val reader = JsonReader(jsonPayload.reader())
+                reader.setStrictness(Strictness.LENIENT)
+                val json = Gson().fromJson(reader, Map::class.java) as Map<String, Any?>
+
                 val type = json["type"] as? String ?: return@launch
 
                 when (type) {
                     "message.created" -> {
                         val payloadJson = Gson().toJson(json["payload"])
                         val payload = Gson().fromJson(payloadJson, Message::class.java)
-                        _messages.value = _messages.value + payload
+                        _messages.value = (_messages.value + payload).sortedBy { it.createdAt }
                     }
-
                     "message.updated" -> {
                         val payloadJson = Gson().toJson(json["payload"])
                         val payload = Gson().fromJson(payloadJson, Message::class.java)
-                        _messages.value = _messages.value.map {
-                            if (it.id == payload.id) payload else it
-                        }
+                        _messages.value = _messages.value
+                            .map { if (it.id == payload.id) payload else it }
+                            .sortedBy { it.createdAt }
                     }
-
                     "message.deleted" -> {
-                        val payloadJson = Gson().toJson(json["payload"])
-                        val payload = Gson().fromJson(payloadJson, Message::class.java)
+                        val payload = Gson().fromJson(Gson().toJson(json["payload"]), Message::class.java)
                         _messages.value = _messages.value.filter { it.id != payload.id }
                     }
                 }
@@ -709,11 +714,20 @@ class ServerViewModel @Inject constructor(
         }
     }
 
+
+
     fun setCurrentConversation(conversationId: Long) {
+        webSocketManager.onMessageReceived = null
+
         _currentConversationId.value = conversationId
         loadMessages(conversationId)
         val serverId = selectedServer.value?.id?.toLong() ?: return
         webSocketManager.subscribe("/topic/servers/$serverId/conversations/$conversationId")
+
+        webSocketManager.onMessageReceived = { message ->
+            Log.d("ServerVM", "✅ Get WS message: $message")
+            onWebSocketMessage(message)
+        }
     }
 
     fun editMessage(conversationId: Long, messageId: Long, newContent: String) {

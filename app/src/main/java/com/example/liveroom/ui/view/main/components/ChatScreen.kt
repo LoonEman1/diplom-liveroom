@@ -9,6 +9,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -18,8 +19,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -145,10 +148,18 @@ fun ChatScreen(
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    items(messages.reversed()) { message ->
+                    itemsIndexed(messages) { index, message ->
+                        val showAuthor = if (index == 0) {
+                            true
+                        } else {
+                            val previousMessage = messages[index - 1]
+                            previousMessage.author?.userId != message.author?.userId
+                        }
+
                         MessageBubble(
                             message = message,
                             isOwn = message.author?.userId == currentUserId,
+                            showAuthor = showAuthor,
                             onLongPress = { offset ->
                                 if (message.deletedAt == null) {
                                     selectedMessageForMenu = message
@@ -271,30 +282,30 @@ fun ChatScreen(
 fun MessageBubble(
     message: Message,
     isOwn: Boolean,
+    showAuthor: Boolean,
     onLongPress: (androidx.compose.ui.geometry.Offset) -> Unit = {}
 ) {
     val isDeleted = message.deletedAt != null || message.content.isNullOrBlank()
     val time = formatTime(message.createdAt)
 
     val author = message.author
-    val showFullName = !author?.firstName.isNullOrBlank() ||
-            !author?.lastName.isNullOrBlank()
+    Log.d("ChatDebug", "Message ID=${message.id}, author=$author, firstName=${author?.firstName}, userId=${author?.userId}, isOwn=$isOwn")
     val fullName = "${author?.firstName ?: ""} ${author?.lastName ?: ""}".trim()
     val username = "@${author?.username ?: "unknown"}"
+    Log.d("ChatDebug", "fullName='$fullName', username='$username'")
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 4.dp),
+            .padding(horizontal = 8.dp, vertical = 2.dp),
         horizontalArrangement = if (isOwn) Arrangement.End else Arrangement.Start
     ) {
         Card(
             modifier = Modifier
-                .widthIn(max = 320.dp)
+                .fillMaxWidth(0.75f)
+                .wrapContentWidth(if (isOwn) Alignment.End else Alignment.Start)
                 .pointerInput(Unit) {
-                    detectTapGestures(
-                        onLongPress = { offset -> onLongPress(offset) }
-                    )
+                    detectTapGestures(onLongPress = { offset -> onLongPress(offset) })
                 },
             colors = CardDefaults.cardColors(
                 containerColor = when {
@@ -305,64 +316,75 @@ fun MessageBubble(
                 }
             ),
             shape = RoundedCornerShape(
-                topStart = 20.dp, topEnd = 20.dp,
-                bottomStart = if (isOwn) 20.dp else 4.dp,
-                bottomEnd = if (isOwn) 4.dp else 20.dp
-            )
+                topStart = 16.dp,
+                topEnd = 16.dp,
+                bottomStart = if (isOwn || !showAuthor) 16.dp else 4.dp,
+                bottomEnd = if (!isOwn || !showAuthor) 16.dp else 4.dp
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
         ) {
             Column(
-                modifier = Modifier.padding(
-                    horizontal = 16.dp,
-                    vertical = if (isDeleted) 8.dp else 12.dp
-                )
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    if (!isOwn) {
-                        Column {
-                            if (showFullName) {
-                                Text(fullName, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
-                                Text(username, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface)
-                            } else {
-                                Text(username, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
+                if (showAuthor && !isDeleted) {
+                    val authorLabel = if (isOwn) {
+                        stringResource(R.string.me)
+                    } else {
+                        if (fullName.isNotBlank()) fullName else username
+                    }
+                    Text(
+                        text = authorLabel,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.padding(bottom = 4.dp),
+                        maxLines = 1
+                    )
+                }
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    if (!isDeleted && !message.content.isNullOrBlank()) {
+                        Text(
+                            text = message.content!!,
+                            fontSize = 15.sp,
+                            lineHeight = 20.sp,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.padding(bottom = 14.dp)
+                        )
+                        Row(
+                            modifier = Modifier.align(Alignment.BottomEnd),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (message.editedAt != null && message.editedAt != message.createdAt) {
+                                Text(
+                                    text = stringResource(R.string.edited_message).lowercase(),
+                                    fontSize = 14.sp,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                                    modifier = Modifier.padding(end = 4.dp)
+                                )
                             }
+                            Text(
+                                text = time,
+                                fontSize = 10.sp,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                            )
                         }
                     } else {
-                        Text(text = stringResource(R.string.me), fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
-                    }
-                    Text(text = time, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface)
-                }
-
-                if (!isDeleted && !message.content.isNullOrBlank()) {
-                    Text(text = message.content!!, fontSize = 15.sp, lineHeight = 20.sp)
-                    if (message.editedAt != null && message.editedAt != message.createdAt) {
-                        Text(
-                            text = stringResource(R.string.edited_message).lowercase(),
-                            fontSize = 14.sp,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                            modifier = Modifier.align(Alignment.End)
-                        )
-
-                    }
-                } else {
-                    Text(
-                        stringResource(R.string.message_deleted),
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = ErrorRed
-                    )
-                    message.deletedAt?.let { deletedIso ->
-                        Text(
-                            text = "${stringResource(R.string.deleted_in)} : ${formatTime(deletedIso)}",
-                            fontSize = 14.sp,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
-                            modifier = Modifier.padding(top = 2.dp)
-                        )
+                        Column(modifier = Modifier.padding(bottom = 14.dp)) {
+                            Text(
+                                text = stringResource(R.string.message_deleted),
+                                color = ErrorRed,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                        message.deletedAt?.let { deletedIso ->
+                            Text(
+                                text = formatTime(deletedIso),
+                                fontSize = 10.sp,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                                modifier = Modifier.align(Alignment.BottomEnd)
+                            )
+                        }
                     }
                 }
             }

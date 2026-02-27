@@ -27,6 +27,8 @@ class WebSocketManager @Inject constructor(
     val logs = _logs.asSharedFlow()
 
 
+    var onMessageReceived: ((String) -> Unit)? = null
+
     private var isConnected = false
 
     fun connect() {
@@ -60,6 +62,7 @@ class WebSocketManager @Inject constructor(
             override fun onMessage(webSocket: WebSocket, text: String) {
                 Log.d("WS", "📨 $text")
                 _logs.tryEmit(text)
+                onMessageReceived?.invoke(text)
             }
 
             override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
