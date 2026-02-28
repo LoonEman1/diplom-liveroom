@@ -1,19 +1,34 @@
 package com.example.liveroom.ui.viewmodel
 
+import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.liveroom.data.local.TokenManager
+import com.example.liveroom.data.model.UserEvent
+import com.example.liveroom.data.remote.dto.UpdateProfileRequest
+import com.example.liveroom.data.remote.dto.UserInfo
 import com.example.liveroom.data.repository.TokenRepository
+import com.example.liveroom.data.repository.UserRepository
+import com.example.liveroom.util.getServerErrorMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @HiltViewModel
-class UserViewModel @Inject constructor(private val tokenManager: TokenManager) : ViewModel() {
+class UserViewModel @Inject constructor(
+    private val tokenManager: TokenManager,
+    private val userRepository: UserRepository
+) : ViewModel() {
+
     private val _userId = MutableStateFlow<Int?>(null)
     val userId: StateFlow<Int?> = _userId.asStateFlow()
 
@@ -28,6 +43,15 @@ class UserViewModel @Inject constructor(private val tokenManager: TokenManager) 
 
     private val _isAuthenticated = MutableStateFlow(false)
     val isAuthenticated: StateFlow<Boolean> = _isAuthenticated.asStateFlow()
+
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    private val _userEvents = MutableSharedFlow<UserEvent>()
+    val userEvents: SharedFlow<UserEvent> = _userEvents.asSharedFlow()
+
+    private val _userInfo = MutableStateFlow<UserInfo?>(null)
+    val userInfo: StateFlow<UserInfo?> = _userInfo.asStateFlow()
 
     init {
         viewModelScope.launch(Dispatchers.IO) {
@@ -65,6 +89,79 @@ class UserViewModel @Inject constructor(private val tokenManager: TokenManager) 
         _accessToken.value = ""
         _refreshToken.value = ""
         _isAuthenticated.value = false
+        _userInfo.value = null
+    }
+
+    fun getUserInfo() {
+        viewModelScope.launch {
+            _isLoading.value = true
+
+            val result = withContext(Dispatchers.IO){
+                userRepository.getUserInfo()
+            }
+
+            result.onSuccess { userInfo ->
+                _userInfo.value = userInfo
+                _username.value = userInfo.nickname
+                _userId.value = userInfo.userId
+                _userEvents.emit(UserEvent.UserLoaded)
+            }.onFailure { throwable ->
+                Log.e("UserViewModel", "Failed to load user: ${throwable.message}")
+                _userEvents.emit(UserEvent.Error(throwable.getServerErrorMessage()))
+            }
+
+            _isLoading.value = false
+        }
+    }
+
+    fun editProfile(editProfileRequest: UpdateProfileRequest) {
+        viewModelScope.launch {
+            _isLoading.value = true
+
+            val result = withContext(Dispatchers.IO) {
+                userRepository.editProfile(editProfileRequest)
+            }
+
+            result.onSuccess {
+                _userInfo.value = it
+                _userEvents.emit(UserEvent.ProfileUpdated)
+            }.onFailure { throwable ->
+                Log.e("UserViewModel", "Failed to update user: ${throwable.message}")
+                _userEvents.emit(UserEvent.Error(throwable.getServerErrorMessage()))
+            }
+            _isLoading.value = false
+        }
+    }
+
+    fun logout() {
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                userRepository.logout(refreshToken = refreshToken.value)
+            }
+
+            result.onSuccess {
+                tokenManager.clearToken()
+                _userEvents.emit(UserEvent.UserLogOuted)
+            }.onFailure { throwable ->
+                Log.e("UserViewModel", "Failed to update user: ${throwable.message}")
+                _userEvents.emit(UserEvent.Error(throwable.getServerErrorMessage()))
+            }
+        }
+    }
+
+    fun updateAvatar(uri: Uri) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            userRepository.updateAvatar(uri)
+                .onSuccess { updated ->
+                    _userInfo.value = updated
+                    _userEvents.emit(UserEvent.AvatarUpdated)
+                }
+                .onFailure { e ->
+                    _userEvents.emit(UserEvent.Error(e.message ?: "Unknown error"))
+                }
+            _isLoading.value = false
+        }
     }
 
 }

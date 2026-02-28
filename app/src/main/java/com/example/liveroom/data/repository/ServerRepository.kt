@@ -5,13 +5,22 @@ import android.net.Uri
 import android.util.Log
 import androidx.core.net.toUri
 import com.example.liveroom.data.remote.api.ServerApiService
+import com.example.liveroom.data.remote.dto.Conversation
+import com.example.liveroom.data.remote.dto.CreateConversationRequest
 import com.example.liveroom.data.remote.dto.CreateServerRequest
+import com.example.liveroom.data.remote.dto.EditMessageRequest
 import com.example.liveroom.data.remote.dto.Invite
+import com.example.liveroom.data.remote.dto.InviteRequest
 import com.example.liveroom.data.remote.dto.InviteUserRequest
 import com.example.liveroom.data.remote.dto.JoinByTokenRequest
+import com.example.liveroom.data.remote.dto.Message
+import com.example.liveroom.data.remote.dto.SendMessageRequest
 import com.example.liveroom.data.remote.dto.Server
+import com.example.liveroom.data.remote.dto.ServerMember
 import com.example.liveroom.data.remote.dto.UpdateServerRequest
 import com.google.gson.Gson
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
@@ -267,4 +276,182 @@ class ServerRepository @Inject constructor(
             Result.failure(e)
         }
     }
+
+    suspend fun getServerConversations(serverId: Int): Result<List<Conversation>> {
+        return try {
+            val conversations = apiService.getServerConversations(serverId)
+            Result.success(conversations)
+        } catch (e: Exception) {
+            Log.e("ServerRepo", "Chat error: ${e.message}")
+            Result.failure(e)
+        }
+    }
+    suspend fun getServerMembers(serverId: Int): Result<List<ServerMember>> {
+        return try {
+            val members = apiService.getServerMembers(serverId)
+            Result.success(members)
+        } catch (e: Exception) {
+            Log.e("ServerRepo", "Members error: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    suspend fun loadServerData(serverId: Int): Result<Pair<List<Conversation>, List<ServerMember>>> {
+        return try {
+            val conversationsDeferred = coroutineScope {
+                async { getServerConversations(serverId) }
+            }
+            val membersDeferred = coroutineScope {
+                async { getServerMembers(serverId) }
+            }
+
+            val conversationsResult = conversationsDeferred.await()
+            val membersResult = membersDeferred.await()
+
+            if (conversationsResult.isSuccess && membersResult.isSuccess) {
+                Result.success(Pair(conversationsResult.getOrNull()!!, membersResult.getOrNull()!!))
+            } else {
+                Result.failure(Exception("Network error"))
+            }
+        } catch (e: Exception) {
+            Log.e("ServerRepo", "loadServerData error: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    suspend fun createConversation(
+        serverId: Int,
+        title: String,
+        isPrivate: Boolean = false,
+        memberUserIds: List<Long> = emptyList()
+    ): Result<Conversation> {
+        return try {
+            val request = CreateConversationRequest(
+                title = title,
+                isPrivate = isPrivate,
+                memberUserIds = memberUserIds
+            )
+            val conversation = apiService.createConversation(serverId, request)
+            Result.success(conversation)
+        } catch (e: Exception) {
+            Log.e("ServerRepo", "Chat creation error ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updateConversationTitle(
+        serverId: Int,
+        conversationId: Long,
+        title: String
+    ): Result<Conversation> {
+        return try {
+            val request = mapOf("title" to title)
+            val updatedConversation = apiService.updateConversation(serverId, conversationId, request)
+            Result.success(updatedConversation)
+        } catch (e: Exception) {
+            Log.e("ServerRepo", "Chat update error ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deleteConversation(
+        serverId: Int,
+        conversationId: Long
+    ): Result<Unit> {
+        return try {
+            val response = apiService.deleteConversation(serverId, conversationId)
+            if (response.isSuccessful) {
+                Result.success(Unit)
+            } else {
+                Result.failure(HttpException(response))
+            }
+        } catch (e: Exception) {
+            Log.e("ServerRepo", "Chat delete error ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getMessages(
+        serverId: Long,
+        conversationId: Long,
+        limit: Int = 50,
+        beforeMessageId: Long? = null
+    ): Result<List<Message>> {
+        return try {
+            val messages = apiService.getMessages(serverId, conversationId, limit, beforeMessageId)
+            Result.success(messages)
+        } catch (e: Exception) {
+            Log.e("ServerRepo", "Messages error: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    suspend fun sendMessage(
+        serverId: Long,
+        conversationId: Long,
+        request: SendMessageRequest
+    ): Result<Message> {
+        return try {
+            val message = apiService.sendMessage(serverId, conversationId, request)
+            Result.success(message)
+        } catch (e: Exception) {
+            Log.e("ServerRepo", "Send message error: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    suspend fun editMessage(
+        serverId: Long,
+        conversationId: Long,
+        messageId: Long,
+        content: String
+    ): Result<Message> {
+        return try {
+            val request = EditMessageRequest(content = content)
+            val message = apiService.editMessage(serverId, conversationId, messageId, request)
+            Result.success(message)
+        } catch (e: Exception) {
+            Log.e("ServerRepo", "Edit message error: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deleteMessage(
+        serverId: Long,
+        conversationId: Long,
+        messageId: Long
+    ): Result<Unit> {
+        return try {
+            val response = apiService.deleteMessage(serverId, conversationId, messageId)
+            if (response.isSuccessful) {
+                Result.success(Unit)
+            } else {
+                Result.failure(HttpException(response))
+            }
+        } catch (e: Exception) {
+            Log.e("ServerRepo", "Delete message error: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    suspend fun inviteToConversation(
+        serverId: Int,
+        conversationId: Long,
+        userId: Int
+    ): Result<Unit> {
+        return try {
+            val request = InviteRequest(userId = userId)
+            val response = apiService.inviteToConversation(serverId, conversationId, request)
+
+            if (response.isSuccessful) {
+                Result.success(Unit)
+            } else {
+                Result.failure(HttpException(response))
+            }
+        } catch (e: Exception) {
+            Log.e("ServerRepo", "Invite to conversation error: ${e.message}")
+            Result.failure(e)
+        }
+    }
 }
+

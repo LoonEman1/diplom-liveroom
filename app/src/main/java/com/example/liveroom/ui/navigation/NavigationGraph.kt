@@ -7,6 +7,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.example.liveroom.data.local.TokenManager
+import com.example.liveroom.data.local.WebSocketManager
 import com.example.liveroom.ui.view.auth.LoginView
 import com.example.liveroom.ui.view.auth.RegistrationView
 import com.example.liveroom.ui.view.main.MainView
@@ -17,7 +18,8 @@ import kotlinx.coroutines.runBlocking
 @Composable
 fun NavigationGraph(
     navController : NavHostController,
-    tokenManager: TokenManager
+    tokenManager: TokenManager,
+    wsManager: WebSocketManager
 ) {
 
     val userViewModel: UserViewModel = hiltViewModel<UserViewModel>()
@@ -63,7 +65,7 @@ fun NavigationGraph(
         composable(
             route = Screen.MainScreen.route
         ) {
-            MainView(navController, userViewModel, serverViewModel)
+            MainView(navController, userViewModel, serverViewModel, wsManager)
         }
     }
 }

@@ -13,14 +13,22 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import android.net.Uri
 import android.util.Log
+import androidx.compose.runtime.mutableStateOf
+import com.example.liveroom.data.local.WebSocketManager
 import com.example.liveroom.data.model.ServerError
 import com.example.liveroom.data.model.ServerEvent
 import com.example.liveroom.data.remote.dto.ApiErrorResponse
+import com.example.liveroom.data.remote.dto.Conversation
 import com.example.liveroom.data.remote.dto.Invite
+import com.example.liveroom.data.remote.dto.Message
+import com.example.liveroom.data.remote.dto.SendMessageRequest
 import com.example.liveroom.data.remote.dto.Server
+import com.example.liveroom.data.remote.dto.ServerMember
 import com.example.liveroom.data.repository.ServerRepository
 import com.example.liveroom.util.getServerErrorMessage
 import com.google.gson.Gson
+import com.google.gson.Strictness
+import com.google.gson.stream.JsonReader
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -31,7 +39,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class ServerViewModel @Inject constructor(
-    private val serverRepository: ServerRepository
+    private val serverRepository: ServerRepository,
+    private val webSocketManager: WebSocketManager
 ) : ViewModel() {
 
     private val _servers = MutableStateFlow<List<Server>>(emptyList())
@@ -52,11 +61,38 @@ class ServerViewModel @Inject constructor(
     private val _generatedToken = MutableStateFlow<String?>(null)
     val generatedToken = _generatedToken.asStateFlow()
 
+    private val _currentServerId = MutableStateFlow<Int?>(null)
+    val currentServerId: StateFlow<Int?> = _currentServerId.asStateFlow()
+
     private val _serverInvites = MutableStateFlow<List<Invite.UserInvite>>(emptyList())
     val serverInvites: StateFlow<List<Invite.UserInvite>> = _serverInvites.asStateFlow()
 
+    private val _conversations = MutableStateFlow<List<Conversation>>(emptyList())
+    val conversations = _conversations.asStateFlow()
+
+    private val _members = MutableStateFlow<List<ServerMember>>(emptyList())
+    val members = _members.asStateFlow()
+
+    private val _selectedServer = MutableStateFlow<Server?>(null)
+    val selectedServer = _selectedServer.asStateFlow()
+
+    private val _currentConversationId = MutableStateFlow<Long?>(null)
+    val currentConversationId: StateFlow<Long?> = _currentConversationId.asStateFlow()
+
+    private val _messages = MutableStateFlow<List<Message>>(emptyList())
+    val messages: StateFlow<List<Message>> = _messages.asStateFlow()
+
     fun setSelectedServerId(selectedServerId: Int) {
         _selectedServerId.value = selectedServerId
+    }
+
+    fun clearServerData() {
+        _conversations.value = emptyList()
+        _members.value = emptyList()
+    }
+
+    fun setSelectedServer(server : Server) {
+        _selectedServer.value = server
     }
 
     fun createServer(
@@ -120,8 +156,10 @@ class ServerViewModel @Inject constructor(
         }
     }
 
-    fun clearError() {
-        _error.value = null
+    fun clear() {
+        _servers.value = emptyList()
+        _generatedToken.value = null
+        _serverInvites.value = emptyList()
     }
 
     fun deleteServer(
@@ -265,7 +303,6 @@ class ServerViewModel @Inject constructor(
         onSuccess: () -> Unit
     ) {
         viewModelScope.launch {
-            _isLoading.value = true
             _error.value = null
             try {
                 if(!username.isNullOrBlank()) {
@@ -285,8 +322,6 @@ class ServerViewModel @Inject constructor(
                     _serverEvents.emit(ServerEvent.ValidationError(ServerError.EmptyUsername))
             } catch(e : Exception) {
                 _serverEvents.emit(ServerEvent.Error(e.message ?: "Unknown error"))
-            } finally {
-                _isLoading.value = false
             }
         }
     }
@@ -447,4 +482,323 @@ class ServerViewModel @Inject constructor(
             )
     }
 
+    fun loadServerIfNeeded(serverId: Int) {
+        if (_currentServerId.value != serverId) {
+            _currentServerId.value = serverId
+            loadServerData(serverId)
+        }
+    }
+
+
+    fun loadServerData(serverId: Int) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    serverRepository.loadServerData(serverId)
+                }
+
+                result.onSuccess { (chats, members) ->
+                    _conversations.value = chats
+                    _members.value = members
+                    Log.i("ServerViewModel", "Chats loaded: ${chats.size}, members: ${members.size}")
+                }.onFailure { exception ->
+                    Log.e("ServerViewModel", "Error load server data ${exception.message}")
+                    _serverEvents.emit(ServerEvent.Error(exception.getServerErrorMessage()))
+                }
+            } catch (e: Exception) {
+                Log.e("ServerViewModel", "Exception loading server data: ${e.message}", e)
+                val errorMsg = e.message ?: "Failed to load server data"
+                _error.value = errorMsg
+                _serverEvents.emit(ServerEvent.Error(errorMsg))
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun createConversation(
+        serverId: Int,
+        title: String,
+        isPrivate: Boolean = false
+    ) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    serverRepository.createConversation(serverId, title, isPrivate)
+                }
+
+                result.onSuccess { newChat ->
+                    _conversations.update { currentChats ->
+                        (listOf(newChat) + currentChats)
+                    }
+                    Log.i("ServerViewModel", "Chat created $title")
+                }.onFailure { exception ->
+                    _serverEvents.emit(ServerEvent.Error(exception.getServerErrorMessage()))
+                }
+            } catch (e: Exception) {
+                Log.e("ServerViewModel", "Exception creating conversation: ${e.message}", e)
+                val errorMsg = e.message ?: "Failed to create conversation"
+                _error.value = errorMsg
+                _serverEvents.emit(ServerEvent.Error(errorMsg))
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun updateConversation(serverId: Int, conversationId: Long, newTitle: String) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    serverRepository.updateConversationTitle(serverId, conversationId, newTitle)
+                }
+
+                result.onSuccess { updatedConversation ->
+                    _conversations.update { currentChats ->
+                        currentChats.map { convo ->
+                            if (convo.id == conversationId) {
+                                convo.copy(title = newTitle)
+                            } else {
+                                convo
+                            }
+                        }
+                    }
+                    Log.i("ServerViewModel", "Chat updated: $conversationId -> $newTitle")
+                }.onFailure { exception ->
+                    _serverEvents.emit(ServerEvent.Error(exception.getServerErrorMessage()))
+                }
+            } catch (e: Exception) {
+                Log.e("ServerViewModel", "Exception updating conversation: ${e.message}", e)
+                val errorMsg = e.message ?: "Failed to update conversation"
+                _error.value = errorMsg
+                _serverEvents.emit(ServerEvent.Error(errorMsg))
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun deleteConversation(serverId: Int, conversationId: Long) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    serverRepository.deleteConversation(serverId, conversationId)
+                }
+
+                result.onSuccess {
+                    _conversations.update { currentChats ->
+                        currentChats.filter { it.id != conversationId }
+                    }
+                    Log.i("ServerViewModel", "Chat deleted $conversationId")
+                }.onFailure { exception ->
+                    _serverEvents.emit(ServerEvent.Error(exception.getServerErrorMessage()))
+                }
+            } catch (e: Exception) {
+                Log.e("ServerViewModel", "Exception deleting conversation: ${e.message}", e)
+                val errorMsg = e.message ?: "Failed to delete conversation"
+                _error.value = errorMsg
+                _serverEvents.emit(ServerEvent.Error(errorMsg))
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+
+    private fun loadMessages(conversationId: Long) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+            try {
+                val serverId = selectedServer.value?.id?.toLong() ?: return@launch
+                val result = withContext(Dispatchers.IO) {
+                    serverRepository.getMessages(serverId, conversationId, limit = 50)
+                }
+                result.onSuccess { messages ->
+                    _messages.value = messages.sortedBy { it.createdAt }
+                    Log.d("ServerVM", "Loaded ${messages.size} messages")
+                }.onFailure { exception ->
+                    _serverEvents.emit(ServerEvent.Error(exception.getServerErrorMessage()))
+                }
+            } catch (e: Exception) {
+                Log.e("ServerVM", "Load messages error: ${e.message}")
+                _serverEvents.emit(ServerEvent.Error(e.message ?: "Load failed"))
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun sendMessage(conversationId: Long, content: String) {
+        if (content.isBlank()) return
+
+        viewModelScope.launch {
+            _error.value = null
+            try {
+                val serverId = selectedServer.value?.id?.toLong() ?: return@launch
+                val request = SendMessageRequest(content = content)
+                val result = withContext(Dispatchers.IO) {
+                    serverRepository.sendMessage(serverId, conversationId, request)
+                }
+                result.onSuccess { message ->
+                    _messages.value = (_messages.value + message).sortedBy { it.createdAt }
+                    Log.d("ServerVM", "Message sent: ${message.id}")
+                }.onFailure { exception ->
+                    _serverEvents.emit(ServerEvent.Error(exception.getServerErrorMessage()))
+                }
+            } catch (e: Exception) {
+                Log.e("ServerVM", "Send error: ${e.message}")
+                _serverEvents.emit(ServerEvent.Error(e.message ?: "Send failed"))
+            }
+        }
+
+        val serverId = selectedServer.value?.id?.toLong() ?: return
+        webSocketManager.send(
+            "/app/servers/$serverId/conversations/$conversationId/messages",
+            """{"content": "${content.replace("\"", "\\\"")}"}"""
+        )
+    }
+
+    fun onWebSocketMessage(text: String) {
+        viewModelScope.launch(Dispatchers.Default) {
+            try {
+                val jsonStart = text.indexOf("\n\n") + 2
+                val jsonPayload = if (jsonStart < text.length) {
+                    text.substring(jsonStart).trim().trimEnd('\u0000')
+                } else {
+                    Log.w("ServerVM", "No JSON payload found: $text")
+                    return@launch
+                }
+
+                Log.d("ServerVM", "Clean JSON: $jsonPayload")
+
+                val reader = JsonReader(jsonPayload.reader())
+                reader.setStrictness(Strictness.LENIENT)
+                val json = Gson().fromJson(reader, Map::class.java) as Map<String, Any?>
+
+                val type = json["type"] as? String ?: return@launch
+
+                when (type) {
+                    "message.created" -> {
+                        val payloadJson = Gson().toJson(json["payload"])
+                        val payload = Gson().fromJson(payloadJson, Message::class.java)
+                        _messages.value = (_messages.value + payload).sortedBy { it.createdAt }
+                    }
+                    "message.updated" -> {
+                        val payloadJson = Gson().toJson(json["payload"])
+                        val payload = Gson().fromJson(payloadJson, Message::class.java)
+                        _messages.value = _messages.value
+                            .map { if (it.id == payload.id) payload else it }
+                            .sortedBy { it.createdAt }
+                    }
+                    "message.deleted" -> {
+                        val payload = Gson().fromJson(Gson().toJson(json["payload"]), Message::class.java)
+                        _messages.value = _messages.value.filter { it.id != payload.id }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("ServerVM", "WS parse error: $text", e)
+            }
+        }
+    }
+
+
+
+    fun setCurrentConversation(conversationId: Long) {
+        webSocketManager.onMessageReceived = null
+
+        _currentConversationId.value = conversationId
+        loadMessages(conversationId)
+        val serverId = selectedServer.value?.id?.toLong() ?: return
+        webSocketManager.subscribe("/topic/servers/$serverId/conversations/$conversationId")
+
+        webSocketManager.onMessageReceived = { message ->
+            Log.d("ServerVM", "✅ Get WS message: $message")
+            onWebSocketMessage(message)
+        }
+    }
+
+    fun editMessage(conversationId: Long, messageId: Long, newContent: String) {
+        if (newContent.isBlank()) return
+        viewModelScope.launch {
+            _error.value = null
+            try {
+                val serverId = selectedServer.value?.id?.toLong() ?: return@launch
+
+                val result = withContext(Dispatchers.IO) {
+                    serverRepository.editMessage(serverId, conversationId, messageId, newContent)
+                }
+
+                result.onSuccess { updatedMessage ->
+                    // Мгновенно обновляем локальный список
+                    _messages.update { currentMessages ->
+                        currentMessages.map {
+                            if (it.id == messageId) updatedMessage else it
+                        }
+                    }
+                    Log.d("ServerVM", "Message edited: $messageId")
+                }.onFailure { exception ->
+                    _serverEvents.emit(ServerEvent.Error(exception.getServerErrorMessage()))
+                }
+            } catch (e: Exception) {
+                Log.e("ServerVM", "Edit error: ${e.message}")
+                _serverEvents.emit(ServerEvent.Error(e.message ?: "Edit failed"))
+            }
+        }
+    }
+
+    fun deleteMessage(conversationId: Long, messageId: Long) {
+        viewModelScope.launch {
+            _error.value = null
+            try {
+                val serverId = selectedServer.value?.id?.toLong() ?: return@launch
+
+                val result = withContext(Dispatchers.IO) {
+                    serverRepository.deleteMessage(serverId, conversationId, messageId)
+                }
+
+                result.onSuccess {
+                    _messages.update { currentMessages ->
+                        currentMessages.map {
+                            if (it.id == messageId) {
+                                it.copy(content = null, deletedAt = System.currentTimeMillis().toString())
+                            } else {
+                                it
+                            }
+                        }
+                    }
+                    Log.d("ServerVM", "Message deleted: $messageId")
+                }.onFailure { exception ->
+                    _serverEvents.emit(ServerEvent.Error(exception.getServerErrorMessage()))
+                }
+            } catch (e: Exception) {
+                Log.e("ServerVM", "Delete error: ${e.message}")
+                _serverEvents.emit(ServerEvent.Error(e.message ?: "Delete failed"))
+            }
+        }
+    }
+
+    fun inviteToConversation(serverId: Int, conversationId: Long, userId: Int) {
+        viewModelScope.launch {
+            val result = serverRepository.inviteToConversation(serverId, conversationId, userId)
+            result.onSuccess {
+                Log.d("ChatDebug", "User $userId invited to conv $conversationId")
+            }.onFailure {
+                Log.e("ChatDebug", "Failed to invite: ${it.message}")
+            }
+        }
+    }
 }
+

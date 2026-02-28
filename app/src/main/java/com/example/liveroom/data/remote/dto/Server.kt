@@ -25,3 +25,29 @@ data class CreateServerRequest(
 data class UpdateServerRequest(
     val name: String?
 )
+data class Conversation(
+    val id: Long,
+    val serverId: Long,
+    val serverName: String,
+    val title: String,
+    val isPrivate: Boolean,
+    val createdAt: String,
+    val createdByUserId: Long,
+    val canManage: Boolean,
+    val lastReadMessageId: Long? = null,
+    val unreadCount: Int = 0,
+    val lastMessage: Any? = null
+)
+
+data class ServerMember(
+    val id: Long,
+    val userId: Int,
+    val username: String,
+    val role: Role
+)
+
+data class CreateConversationRequest(
+    val title: String,
+    val isPrivate: Boolean = false,
+    val memberUserIds: List<Long> = emptyList()
+)
