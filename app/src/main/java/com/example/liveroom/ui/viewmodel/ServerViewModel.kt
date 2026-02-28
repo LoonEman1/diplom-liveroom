@@ -789,5 +789,16 @@ class ServerViewModel @Inject constructor(
             }
         }
     }
+
+    fun inviteToConversation(serverId: Int, conversationId: Long, userId: Int) {
+        viewModelScope.launch {
+            val result = serverRepository.inviteToConversation(serverId, conversationId, userId)
+            result.onSuccess {
+                Log.d("ChatDebug", "User $userId invited to conv $conversationId")
+            }.onFailure {
+                Log.e("ChatDebug", "Failed to invite: ${it.message}")
+            }
+        }
+    }
 }
 

@@ -80,9 +80,12 @@ import com.example.liveroom.ui.theme.linkTextColor
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.window.Popup
 import com.example.liveroom.ui.view.main.components.common.DeleteConversationDialog
 import com.example.liveroom.ui.view.main.components.common.EditConversationDialog
+import com.example.liveroom.ui.view.main.components.common.InviteToConversationDialog
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -90,7 +93,8 @@ import kotlin.math.roundToInt
 fun ServerComponent(
     server: Server?,
     serverViewModel: ServerViewModel,
-    onTabChange: (String) -> Unit
+    onTabChange: (String) -> Unit,
+    currentUserId : Int
 ) {
     var showCreateChatDialog by remember { mutableStateOf(false) }
 
@@ -107,6 +111,16 @@ fun ServerComponent(
     var deletingConversationId by remember { mutableStateOf<Long?>(null) }
 
     var deletingConversationName by remember { mutableStateOf("") }
+
+    var showMemberMenu by remember { mutableStateOf(false) }
+    var memberMenuOffset by remember { mutableStateOf(Offset.Zero) }
+    var selectedMemberForInvite by remember { mutableStateOf<ServerMember?>(null) }
+    var showInviteDialog by remember { mutableStateOf(false) }
+
+
+    val privateConversations = remember(conversations) {
+        conversations.filter { it.isPrivate }
+    }
 
 
     Column(modifier = Modifier.fillMaxHeight()) {
@@ -170,7 +184,16 @@ fun ServerComponent(
                     modifier = Modifier.heightIn(max = 300.dp)
                 ) {
                     items(members) { member ->
-                        MemberRow(member)
+                        MemberRow(
+                            member,
+                            onLongPress = { offset ->
+                                if (member.userId !=  currentUserId) {
+                                selectedMemberForInvite = member
+                                memberMenuOffset = offset
+                                showMemberMenu = true
+                                }
+                            }
+                        )
                     }
                 }
             }
@@ -290,6 +313,29 @@ fun ServerComponent(
                 }
             )
         }
+    }
+
+    if (showMemberMenu) {
+        MemberContextMenu(
+            offset = memberMenuOffset,
+            onDismiss = { showMemberMenu = false },
+            onInviteClick = { showInviteDialog = true }
+        )
+    }
+    if (showInviteDialog && selectedMemberForInvite != null) {
+        InviteToConversationDialog(
+            showDialog = showInviteDialog,
+            conversations = privateConversations,
+            onDismiss = { showInviteDialog = false },
+            onConfirm = { conversationId ->
+                serverViewModel.inviteToConversation(
+                    serverId = server?.id ?: -1,
+                    conversationId = conversationId,
+                    userId = selectedMemberForInvite!!.userId.toInt()
+                )
+                showInviteDialog = false
+            }
+        )
     }
 }
 
@@ -554,11 +600,29 @@ fun CreateChatDialog(
 }
 
 @Composable
-fun MemberRow(member: ServerMember) {
+fun MemberRow(
+    member: ServerMember,
+    onLongPress: (Offset) -> Unit
+) {
+    var itemPosition by remember { mutableStateOf(Offset.Zero) }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { Log.d("Server", "Клик по ${member.username}") }
+            .onGloballyPositioned { coordinates ->
+                itemPosition = coordinates.positionInParent()
+            }
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onLongPress = { localOffset ->
+                        val globalOffset = Offset(
+                            x = itemPosition.x + localOffset.x,
+                            y = itemPosition.y + localOffset.y
+                        )
+                        onLongPress(globalOffset)
+                    }
+                )
+            }
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -594,12 +658,45 @@ fun MemberRow(member: ServerMember) {
             containerColor = when (member.role.name) {
                 "OWNER" -> ErrorRed
                 "ADMIN" -> linkTextColor
-                else -> MaterialTheme.colorScheme.onSurface
+                else -> Color.Black
             }
         ) {
             Text(
                 member.role.name,
                 color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+    }
+}
+
+@Composable
+fun MemberContextMenu(
+    onDismiss: () -> Unit,
+    offset: Offset,
+    onInviteClick: () -> Unit
+) {
+    Popup(
+        alignment = Alignment.TopStart,
+        offset = IntOffset(offset.x.toInt(), offset.y.toInt()),
+        onDismissRequest = onDismiss
+    ) {
+        Column(
+            modifier = Modifier
+                .clip(RoundedCornerShape(14.dp))
+                .background(MaterialTheme.colorScheme.primary)
+                .padding(vertical = 8.dp)
+                .width(180.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.invite_to_channel),
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        onInviteClick()
+                        onDismiss()
+                    }
+                    .padding(16.dp)
             )
         }
     }

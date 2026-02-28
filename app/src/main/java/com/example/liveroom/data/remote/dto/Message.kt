@@ -52,8 +52,8 @@ data class ReplyTo(
     val content: String?
 )
 
-
 data class EditMessageRequest(
     val content: String
 )
+data class InviteRequest(val userId: Int)
 

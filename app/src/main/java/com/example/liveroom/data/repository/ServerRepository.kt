@@ -10,6 +10,7 @@ import com.example.liveroom.data.remote.dto.CreateConversationRequest
 import com.example.liveroom.data.remote.dto.CreateServerRequest
 import com.example.liveroom.data.remote.dto.EditMessageRequest
 import com.example.liveroom.data.remote.dto.Invite
+import com.example.liveroom.data.remote.dto.InviteRequest
 import com.example.liveroom.data.remote.dto.InviteUserRequest
 import com.example.liveroom.data.remote.dto.JoinByTokenRequest
 import com.example.liveroom.data.remote.dto.Message
@@ -429,6 +430,26 @@ class ServerRepository @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e("ServerRepo", "Delete message error: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    suspend fun inviteToConversation(
+        serverId: Int,
+        conversationId: Long,
+        userId: Int
+    ): Result<Unit> {
+        return try {
+            val request = InviteRequest(userId = userId)
+            val response = apiService.inviteToConversation(serverId, conversationId, request)
+
+            if (response.isSuccessful) {
+                Result.success(Unit)
+            } else {
+                Result.failure(HttpException(response))
+            }
+        } catch (e: Exception) {
+            Log.e("ServerRepo", "Invite to conversation error: ${e.message}")
             Result.failure(e)
         }
     }

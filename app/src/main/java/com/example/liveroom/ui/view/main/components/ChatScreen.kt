@@ -54,8 +54,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
@@ -74,6 +77,7 @@ import com.example.liveroom.ui.theme.ErrorRed
 import com.example.liveroom.ui.theme.LightSurface
 import com.example.liveroom.ui.theme.SurfaceColor
 import com.example.liveroom.ui.view.main.components.common.ConfirmationDialog
+import com.example.liveroom.ui.view.main.components.common.InviteToConversationDialog
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
@@ -93,7 +97,6 @@ fun ChatScreen(
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
     val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
-    val context = LocalContext.current
 
     var editingMessage by remember { mutableStateOf<Message?>(null) }
     var messageToDelete by remember { mutableStateOf<Message?>(null) }
@@ -272,7 +275,7 @@ fun ChatScreen(
                 onDelete = {
                     messageToDelete = selectedMessageForMenu
                     showContextMenu = false
-                }
+                },
             )
         }
     }
@@ -294,10 +297,15 @@ fun MessageBubble(
     val username = "@${author?.username ?: "unknown"}"
     Log.d("ChatDebug", "fullName='$fullName', username='$username'")
 
+    var itemPosition by remember { mutableStateOf(Offset.Zero) }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 2.dp),
+            .padding(horizontal = 8.dp, vertical = 2.dp)
+            .onGloballyPositioned { coordinates ->
+                itemPosition = coordinates.positionInParent()
+            },
         horizontalArrangement = if (isOwn) Arrangement.End else Arrangement.Start
     ) {
         Card(
@@ -305,7 +313,13 @@ fun MessageBubble(
                 .fillMaxWidth(0.75f)
                 .wrapContentWidth(if (isOwn) Alignment.End else Alignment.Start)
                 .pointerInput(Unit) {
-                    detectTapGestures(onLongPress = { offset -> onLongPress(offset) })
+                    detectTapGestures(onLongPress = { localOffset ->
+                        val globalOffset = Offset(
+                            x = itemPosition.x + localOffset.x,
+                            y = itemPosition.y + localOffset.y
+                        )
+                        onLongPress(globalOffset)
+                    })
                 },
             colors = CardDefaults.cardColors(
                 containerColor = when {

@@ -5,6 +5,7 @@ import com.example.liveroom.data.remote.dto.CreateConversationRequest
 import com.example.liveroom.data.remote.dto.CreateServerRequest
 import com.example.liveroom.data.remote.dto.EditMessageRequest
 import com.example.liveroom.data.remote.dto.Invite
+import com.example.liveroom.data.remote.dto.InviteRequest
 import com.example.liveroom.data.remote.dto.InviteUserRequest
 import com.example.liveroom.data.remote.dto.JoinByTokenRequest
 import com.example.liveroom.data.remote.dto.Message
@@ -166,6 +167,13 @@ interface ServerApiService {
         @Path("serverId") serverId: Long,
         @Path("conversationId") conversationId: Long,
         @Path("messageId") messageId: Long
+    ): Response<Unit>
+
+    @POST("api/servers/{serverId}/conversations/{conversationId}/members")
+    suspend fun inviteToConversation(
+        @Path("serverId") serverId: Int,
+        @Path("conversationId") conversationId: Long,
+        @Body request: InviteRequest
     ): Response<Unit>
 }
 

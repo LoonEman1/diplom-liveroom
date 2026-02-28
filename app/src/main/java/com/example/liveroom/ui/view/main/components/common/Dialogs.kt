@@ -14,11 +14,15 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -693,6 +697,125 @@ fun DeleteConversationDialog(
                         .weight(1f)
                         .height(48.dp)
                 )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun InviteToConversationDialog(
+    showDialog: Boolean,
+    conversations: List<Conversation>,
+    onDismiss: () -> Unit,
+    onConfirm: (Long) -> Unit
+) {
+    if (showDialog) {
+        var selectedId by remember { mutableStateOf<Long?>(null) }
+
+        BasicAlertDialog(
+            onDismissRequest = onDismiss,
+            modifier = Modifier
+                .clip(RoundedCornerShape(14.dp))
+                .background(MaterialTheme.colorScheme.background)
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+
+                Text(
+                    text = stringResource(R.string.invite_to_channel),
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center
+                )
+
+                Text(
+                    text = stringResource(R.string.select_private_channel),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+
+                val privateChannels = conversations.filter { it.isPrivate }
+
+                if (privateChannels.isEmpty()) {
+                    Text(
+                        text = stringResource(R.string.no_available_private_channels),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(vertical = 20.dp)
+                    )
+                } else {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 240.dp)
+                    ) {
+                        LazyColumn(
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(privateChannels) { conv ->
+                                val isSelected = selectedId == conv.id
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(
+                                            if (isSelected) MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f)
+                                            else MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f)
+                                        )
+                                        .clickable { selectedId = conv.id }
+                                        .padding(16.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = conv.title ?: "${stringResource(R.string.channel)} : ${conv.id}",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    if (isSelected) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = null,
+                                            tint = linkTextColor,
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    PrimaryButton(
+                        text = stringResource(R.string.cancel),
+                        onClick = onDismiss,
+                        containerColor = MaterialTheme.colorScheme.error,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp)
+                    )
+
+                    PrimaryButton(
+                        text = stringResource(R.string.confirm),
+                        onClick = {
+                            selectedId?.let { onConfirm(it) }
+                        },
+                        enabled = selectedId != null,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp)
+                    )
+                }
             }
         }
     }

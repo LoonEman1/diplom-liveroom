@@ -41,7 +41,7 @@ data class Conversation(
 
 data class ServerMember(
     val id: Long,
-    val userId: Long,
+    val userId: Int,
     val username: String,
     val role: Role
 )

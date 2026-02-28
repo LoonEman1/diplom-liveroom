@@ -146,12 +146,14 @@ fun MainLayout(
                     "server" -> {
                         if (selectedServer != null) {
                             serverViewModel.loadServerIfNeeded(selectedServer?.id!!)
+                            val currentUserId = userViewModel.userInfo.value?.userId ?: -1
                             ServerComponent(
                                 selectedServer ?: null,
                                 serverViewModel,
                                 onTabChange = { newTab ->
                                     selectedTab = newTab
-                                }
+                                },
+                                currentUserId = currentUserId
                             )
                         }
                     }
