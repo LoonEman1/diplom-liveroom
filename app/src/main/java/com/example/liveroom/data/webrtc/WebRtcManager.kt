@@ -92,16 +92,6 @@ class WebRtcManager @Inject constructor(
         val iceServers = listOf(
             PeerConnection.IceServer.builder("stun:stun.l.google.com:19302")
                 .createIceServer(),
-
-            PeerConnection.IceServer.builder("turn:numb.viagenie.ca")
-                .setUsername("liveroomtes321421t@gmail.com")
-                .setPassword("muaz345@webrtc")
-                .createIceServer(),
-
-            PeerConnection.IceServer.builder("turn:numb.viagenie.ca:443?transport=tcp")
-                .setUsername("liveroomtest4214@gmail.com")
-                .setPassword("muaz512521@webrtc")
-                .createIceServer()
         )
 
 
