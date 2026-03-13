@@ -26,8 +26,8 @@ data class UpdateServerRequest(
     val name: String?
 )
 data class Conversation(
-    val id: Long,
-    val serverId: Long,
+    val id: Int,
+    val serverId: Int,
     val serverName: String,
     val title: String,
     val isPrivate: Boolean,

@@ -78,6 +78,7 @@ import com.example.liveroom.ui.theme.ButtonColor
 import com.example.liveroom.ui.theme.ErrorRed
 import com.example.liveroom.ui.theme.linkTextColor
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.runtime.toLong
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -250,12 +251,12 @@ fun ServerComponent(
                             showEditDialog = true
                         },
                         onDeleteConversation = { name ->
-                            deletingConversationId = convo.id
+                            deletingConversationId = convo.id.toLong()
                             showDeleteDialog = true
                             deletingConversationName = convo.title
                         },
                         onClickConversation = { convoId ->
-                            serverViewModel.setCurrentConversation(convoId)
+                            serverViewModel.setCurrentConversation(convoId, currentUserId)
                             onTabChange("chat")
                         },
                         modifier = Modifier.padding(horizontal = 16.dp)
@@ -300,7 +301,7 @@ fun ServerComponent(
     }
 
     if (showDeleteDialog && deletingConversationId != null) {
-        val currentConvo = conversations.find { it.id == deletingConversationId }
+        val currentConvo = conversations.find { it.id.toLong() == deletingConversationId }
         currentConvo?.let { convo ->
             DeleteConversationDialog(
                 conversationName = deletingConversationName,
@@ -360,7 +361,7 @@ fun ConversationItem(
             .padding(vertical = 4.dp)
             .pointerInput(Unit) {
                 detectTapGestures(
-                    onTap = { onClickConversation(convo.id) },
+                    onTap = { onClickConversation(convo.id.toLong()) },
                     onLongPress = { offset ->
                         popupOffset = offset
                         showContextMenu = true

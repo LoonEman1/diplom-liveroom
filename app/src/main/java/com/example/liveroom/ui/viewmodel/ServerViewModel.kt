@@ -1,5 +1,6 @@
 package com.example.liveroom.ui.viewmodel
 
+import android.R.attr.type
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -15,6 +16,11 @@ import android.net.Uri
 import android.util.Log
 import androidx.compose.runtime.mutableStateOf
 import com.example.liveroom.data.local.WebSocketManager
+import com.example.liveroom.data.model.ActiveCall
+import com.example.liveroom.data.model.CallEndedEvent
+import com.example.liveroom.data.model.CallKind
+import com.example.liveroom.data.model.CallParticipantEvent
+import com.example.liveroom.data.model.CallSignalType
 import com.example.liveroom.data.model.ServerError
 import com.example.liveroom.data.model.ServerEvent
 import com.example.liveroom.data.remote.dto.ApiErrorResponse
@@ -25,6 +31,7 @@ import com.example.liveroom.data.remote.dto.SendMessageRequest
 import com.example.liveroom.data.remote.dto.Server
 import com.example.liveroom.data.remote.dto.ServerMember
 import com.example.liveroom.data.repository.ServerRepository
+import com.example.liveroom.data.webrtc.CallStateManager
 import com.example.liveroom.util.getServerErrorMessage
 import com.google.gson.Gson
 import com.google.gson.Strictness
@@ -36,12 +43,21 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import retrofit2.HttpException
 import javax.inject.Inject
+import com.example.liveroom.data.model.CallEvent
+import com.example.liveroom.data.model.IncomingCall
+import com.example.liveroom.data.model.IceCandidateDto
+import com.example.liveroom.data.model.CallClientMessage
+import com.example.liveroom.data.webrtc.WebRtcManager
+import com.google.gson.JsonObject
+
 
 @HiltViewModel
 class ServerViewModel @Inject constructor(
     private val serverRepository: ServerRepository,
-    private val webSocketManager: WebSocketManager
-) : ViewModel() {
+    private val webSocketManager: WebSocketManager,
+    private val callStateManager: CallStateManager,
+    private val webRtcManager: WebRtcManager
+) : ViewModel(), WebRtcManager.SignalingDelegate {
 
     private val _servers = MutableStateFlow<List<Server>>(emptyList())
     val servers: StateFlow<List<Server>> = _servers.asStateFlow()
@@ -82,7 +98,27 @@ class ServerViewModel @Inject constructor(
     private val _messages = MutableStateFlow<List<Message>>(emptyList())
     val messages: StateFlow<List<Message>> = _messages.asStateFlow()
 
-    fun setSelectedServerId(selectedServerId: Int) {
+    private var currentWsType: String? = null
+
+    val activeCall = callStateManager.activeCall
+    val incomingCallDialog = callStateManager.incomingCallDialog
+
+    init {
+        webRtcManager.signalingDelegate = this
+
+
+    }
+
+
+    private fun subscribeToCalls(serverId: Long, conversationId: Long, userId: Int) {
+        Log.d("CallDebug", "📡 SUBSCRIBE calls: /topic/servers/$serverId/conversations/$conversationId/calls")
+        webSocketManager.subscribe("/topic/servers/$serverId/conversations/$conversationId/calls")
+
+        Log.d("CallDebug", "📡 SUBSCRIBE user: /topic/users/$userId/calls")
+        webSocketManager.subscribe("/topic/users/$userId/calls")
+    }
+
+        fun setSelectedServerId(selectedServerId: Int) {
         _selectedServerId.value = selectedServerId
     }
 
@@ -565,7 +601,7 @@ class ServerViewModel @Inject constructor(
                 result.onSuccess { updatedConversation ->
                     _conversations.update { currentChats ->
                         currentChats.map { convo ->
-                            if (convo.id == conversationId) {
+                            if (convo.id.toLong() == conversationId) {
                                 convo.copy(title = newTitle)
                             } else {
                                 convo
@@ -599,7 +635,7 @@ class ServerViewModel @Inject constructor(
 
                 result.onSuccess {
                     _conversations.update { currentChats ->
-                        currentChats.filter { it.id != conversationId }
+                        currentChats.filter { it.id.toLong() != conversationId }
                     }
                     Log.i("ServerViewModel", "Chat deleted $conversationId")
                 }.onFailure { exception ->
@@ -671,7 +707,19 @@ class ServerViewModel @Inject constructor(
         )
     }
 
-    fun onWebSocketMessage(text: String) {
+    fun onWebSocketMessage(text: String, userId: Int) {
+        Log.d("ServerVM", "📨 RAW: $text")
+
+        // ✅ Извлеки только JSON payload после \n\n
+        val jsonStart = text.indexOf('{')
+        if (jsonStart == -1) {
+            Log.w("ServerVM", "No JSON in message")
+            return
+        }
+
+        val jsonString = text.substring(jsonStart)
+        Log.d("ServerVM", "📄 JSON only: $jsonString")
+
         viewModelScope.launch(Dispatchers.Default) {
             try {
                 val jsonStart = text.indexOf("\n\n") + 2
@@ -690,22 +738,29 @@ class ServerViewModel @Inject constructor(
 
                 val type = json["type"] as? String ?: return@launch
 
+
+                currentWsType = type
+
+                handleCallEvents(json, type, userId)
+
+
                 when (type) {
-                    "message.created" -> {
-                        val payloadJson = Gson().toJson(json["payload"])
-                        val payload = Gson().fromJson(payloadJson, Message::class.java)
-                        _messages.value = (_messages.value + payload).sortedBy { it.createdAt }
+                    "message.created" -> json["payload"]?.let { payload ->
+                        val payloadJson = Gson().toJson(payload)
+                        val message = Gson().fromJson(payloadJson, Message::class.java)
+                        _messages.value = (_messages.value + message).sortedBy { it.createdAt }
                     }
-                    "message.updated" -> {
-                        val payloadJson = Gson().toJson(json["payload"])
-                        val payload = Gson().fromJson(payloadJson, Message::class.java)
+                    "message.updated" -> json["payload"]?.let { payload ->
+                        val payloadJson = Gson().toJson(payload)
+                        val message = Gson().fromJson(payloadJson, Message::class.java)
                         _messages.value = _messages.value
-                            .map { if (it.id == payload.id) payload else it }
+                            .map { if (it.id == message.id) message else it }
                             .sortedBy { it.createdAt }
                     }
-                    "message.deleted" -> {
-                        val payload = Gson().fromJson(Gson().toJson(json["payload"]), Message::class.java)
-                        _messages.value = _messages.value.filter { it.id != payload.id }
+                    "message.deleted" -> json["payload"]?.let { payload ->
+                        val payloadJson = Gson().toJson(payload)
+                        val message = Gson().fromJson(payloadJson, Message::class.java)
+                        _messages.value = _messages.value.filter { it.id != message.id }
                     }
                 }
             } catch (e: Exception) {
@@ -716,7 +771,7 @@ class ServerViewModel @Inject constructor(
 
 
 
-    fun setCurrentConversation(conversationId: Long) {
+    fun setCurrentConversation(conversationId: Long, userId : Int) {
         webSocketManager.onMessageReceived = null
 
         _currentConversationId.value = conversationId
@@ -724,9 +779,12 @@ class ServerViewModel @Inject constructor(
         val serverId = selectedServer.value?.id?.toLong() ?: return
         webSocketManager.subscribe("/topic/servers/$serverId/conversations/$conversationId")
 
+        subscribeToCalls(serverId, conversationId, userId)
+
+
         webSocketManager.onMessageReceived = { message ->
             Log.d("ServerVM", "✅ Get WS message: $message")
-            onWebSocketMessage(message)
+            onWebSocketMessage(message, userId)
         }
     }
 
@@ -799,6 +857,314 @@ class ServerViewModel @Inject constructor(
                 Log.e("ChatDebug", "Failed to invite: ${it.message}")
             }
         }
+    }
+
+    private suspend fun handleCallEvents(json: Map<String, Any?>, type: String, userId: Int) {
+        val payload = json["payload"] ?: return
+
+        when (type) {
+            "call.started" -> {
+                val call = parseCallStart(payload as Map<*, *>)
+                callStateManager.updateActiveCall(call)
+            }
+            "call.participant.joined" -> {
+                val event = parseParticipant(payload as Map<*, *>)
+                callStateManager.participantJoined(event.callId, event.userId)
+
+                val myUserId = userId.toLong()
+                val activeCall = callStateManager.activeCall.value ?: return
+
+                if (event.userId != myUserId) {
+                    // Инициализирует только тот, у кого ID больше (или меньше, главное — консистентность)
+                    if (myUserId < event.userId) {
+                        Log.d("WebRTC", "I am the initiator, sending OFFER to ${event.userId}")
+                        webRtcManager.createOffer(
+                            callId = activeCall.callId,
+                            remoteUserId = event.userId,
+                            kind = activeCall.kind
+                        )
+                    } else {
+                        Log.d("WebRTC", "I will wait for OFFER from ${event.userId}")
+                    }
+                }
+            }
+            "call.ended" -> {
+                val ended = parseCallEnded(payload as Map<*, *>)
+                callStateManager.endCall(ended.callId)
+            }
+            "call.signal" -> {
+                handleCallSignal(payload as Map<*, *>)
+            }
+        }
+    }
+
+    private fun parseCallStart(payload: Map<*, *>): ActiveCall {
+        return ActiveCall(
+            callId = payload["callId"] as String,
+            serverId = (payload["serverId"] as Number).toLong(),
+            conversationId = (payload["conversationId"] as Number).toLong(),
+            kind = CallKind.valueOf(payload["kind"] as String),
+            participants = emptySet(),
+            startedAt = payload["startedAt"] as String
+        )
+    }
+
+    private fun parseParticipant(payload: Map<*, *>): CallParticipantEvent {
+        return CallParticipantEvent(
+            callId = payload["callId"] as String,
+            userId = (payload["userId"] as Number).toLong(),
+            joined = currentWsType == "call.participant.joined"
+        )
+    }
+
+    private fun parseCallEnded(payload: Map<*, *>): CallEndedEvent {
+        return CallEndedEvent(
+            callId = payload["callId"] as String,
+            reason = payload["reason"] as? String
+        )
+    }
+
+    private fun handleCallSignal(payload: Map<*, *>) {
+        val signalStr = payload["signal"] as? String ?: run {
+            Log.w("CallSignal", "No signal in payload")
+            return
+        }
+
+        val signal = try {
+            CallSignalType.valueOf(signalStr.uppercase())
+        } catch (e: IllegalArgumentException) {
+            Log.w("CallSignal", "Unknown signal: $signalStr")
+            return
+        }
+
+        Log.d("CallSignal", "🔄 Processing $signal from ${payload["fromUserId"]}")
+
+        when (signal) {
+            CallSignalType.START -> {
+                val callId = payload["callId"] as? String ?: return
+                Log.d("CallSignal", "✅ START confirmed: $callId")
+            }
+
+            CallSignalType.INVITE -> {
+                val callId = payload["callId"] as? String ?: return
+                val fromUserId = (payload["fromUserId"] as? Number)?.toLong() ?: return
+                val serverId = (payload["serverId"] as? Number)?.toLong()
+                val conversationId = (payload["conversationId"] as? Number)?.toLong()
+
+                Log.d("CallSignal", "📞 Incoming INVITE from $fromUserId")
+
+                callStateManager.showIncomingCallDialog(
+                    IncomingCall(
+                        callId = callId,
+                        fromUserId = fromUserId,
+                        serverId = serverId,
+                        conversationId = conversationId
+                    )
+                )
+            }
+
+            CallSignalType.JOIN -> {
+                val callId = payload["callId"] as? String ?: return
+                val userId = (payload["fromUserId"] as? Number)?.toLong() ?: return
+
+                Log.d("CallSignal", "✅ User $userId JOINED $callId")
+                callStateManager.participantJoined(callId, userId)
+            }
+
+            CallSignalType.LEAVE -> {
+                val callId = payload["callId"] as? String ?: return
+                val userId = (payload["fromUserId"] as? Number)?.toLong() ?: return
+
+                Log.d("CallSignal", "👋 User $userId LEFT $callId")
+                callStateManager.participantLeft(callId, userId)
+                webRtcManager.closeCall(callId)
+            }
+
+            CallSignalType.END -> {
+                val callId = payload["callId"] as? String ?: return
+                Log.d("CallSignal", "🔚 END $callId")
+                callStateManager.endCall(callId)
+                webRtcManager.closeCall(callId)
+            }
+
+            CallSignalType.OFFER -> {
+                val callId = payload["callId"] as? String ?: return
+                val fromUserId = (payload["fromUserId"] as? Number)?.toLong() ?: return
+                val sdp = payload["sdp"] as? String ?: return
+                val kind = (payload["kind"] as? String)
+                    ?.let {
+                        try {
+                            CallKind.valueOf(it.uppercase())
+                        } catch (e: Exception) {
+                            CallKind.AUDIO
+                        }
+                    } ?: CallKind.AUDIO
+
+                Log.d("WebRTC", "📥 OFFER for $callId from $fromUserId")
+                webRtcManager.onRemoteOffer(
+                    callId = callId,
+                    fromUserId = fromUserId,
+                    sdp = sdp,
+                    kind = kind
+                )
+            }
+
+            CallSignalType.ANSWER -> {
+                val callId = payload["callId"] as? String ?: return
+                val sdp = payload["sdp"] as? String ?: return
+
+                Log.d("WebRTC", "📥 ANSWER for $callId")
+                webRtcManager.onRemoteAnswer(
+                    callId = callId,
+                    sdp = sdp
+                )
+            }
+
+            CallSignalType.ICE -> {
+                val callId = payload["callId"] as? String ?: return
+                val icePayload = payload["ice"] ?: run {
+                    Log.w("WebRTC", "ICE payload is null")
+                    return
+                }
+
+                val ice = try {
+                    Gson().fromJson(
+                        Gson().toJson(icePayload),
+                        IceCandidateDto::class.java
+                    )
+                } catch (e: Exception) {
+                    Log.e("WebRTC", "Failed to parse ICE payload", e)
+                    return
+                }
+
+                Log.d("WebRTC", "🧊 ICE for $callId")
+                webRtcManager.onRemoteIce(
+                    callId = callId,
+                    ice = ice
+                )
+            }
+
+            CallSignalType.BUSY -> {
+                val callId = payload["callId"] as? String
+                Log.w("CallSignal", "❌ BUSY for callId=$callId")
+            }
+
+            CallSignalType.ERROR -> {
+                val error = payload["error"] as? String
+                val callId = payload["callId"] as? String
+                Log.e("CallSignal", "💥 ERROR for callId=$callId : $error")
+            }
+        }
+    }
+
+
+    fun startCall(serverId: Long, conversationId: Long, kind: CallKind = CallKind.AUDIO) {
+        val message = CallClientMessage(
+            type = CallSignalType.START,
+            kind = kind,
+            inviteUserIds = emptyList()
+        )
+
+        webSocketManager.send(
+            "/app/calls/servers/$serverId/conversations/$conversationId",
+            Gson().toJson(message)
+        )
+    }
+
+    fun joinCall(callId: String) {
+        val serverId = selectedServer.value?.id?.toLong() ?: return
+        val conversationId = currentConversationId.value ?: return
+
+        val message = CallClientMessage(
+            type = CallSignalType.JOIN,
+            callId = callId
+        )
+
+        webSocketManager.send(
+            "/app/calls/servers/$serverId/conversations/$conversationId",
+            Gson().toJson(message)
+        )
+    }
+
+    fun leaveCall(callId: String) {
+        val serverId = selectedServer.value?.id?.toLong() ?: return
+        val conversationId = currentConversationId.value ?: return
+
+        val message = CallClientMessage(
+            type = CallSignalType.LEAVE,
+            callId = callId
+        )
+
+        webSocketManager.send(
+            "/app/calls/servers/$serverId/conversations/$conversationId",
+            Gson().toJson(message)
+        )
+    }
+
+    fun endCallWs(callId: String) {
+        val serverId = selectedServer.value?.id?.toLong() ?: return
+        val conversationId = currentConversationId.value ?: return
+
+        val message = CallClientMessage(
+            type = CallSignalType.END,
+            callId = callId
+        )
+
+        webSocketManager.send(
+            "/app/calls/servers/$serverId/conversations/$conversationId",
+            Gson().toJson(message)
+        )
+    }
+
+    override fun sendOffer(callId: String, toUserId: Long, sdp: String) {
+        val serverId = selectedServer.value?.id?.toLong() ?: return
+        val conversationId = currentConversationId.value ?: return
+
+        val msg = CallClientMessage(
+            type = CallSignalType.OFFER,
+            callId = callId,
+            toUserId = toUserId,
+            sdp = sdp
+        )
+
+        webSocketManager.send(
+            "/app/calls/servers/$serverId/conversations/$conversationId",
+            Gson().toJson(msg)
+        )
+    }
+
+    override fun sendAnswer(callId: String, toUserId: Long, sdp: String) {
+        val serverId = selectedServer.value?.id?.toLong() ?: return
+        val conversationId = currentConversationId.value ?: return
+
+        val msg = CallClientMessage(
+            type = CallSignalType.ANSWER,
+            callId = callId,
+            toUserId = toUserId,
+            sdp = sdp
+        )
+
+        webSocketManager.send(
+            "/app/calls/servers/$serverId/conversations/$conversationId",
+            Gson().toJson(msg)
+        )
+    }
+
+    override fun sendIceCandidate(callId: String, toUserId: Long, ice: IceCandidateDto) {
+        val serverId = selectedServer.value?.id?.toLong() ?: return
+        val conversationId = currentConversationId.value ?: return
+
+        val msg = CallClientMessage(
+            type = CallSignalType.ICE,
+            callId = callId,
+            toUserId = toUserId,
+            ice = ice
+        )
+
+        webSocketManager.send(
+            "/app/calls/servers/$serverId/conversations/$conversationId",
+            Gson().toJson(msg)
+        )
     }
 }
 

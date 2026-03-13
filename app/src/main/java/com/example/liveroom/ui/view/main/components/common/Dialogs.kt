@@ -607,7 +607,7 @@ fun EditConversationDialog(
                         if (newTitle.isNotBlank() && newTitle != conversation.title) {
                             serverViewModel.updateConversation(
                                 serverId = serverId,
-                                conversationId = conversation.id,
+                                conversationId = conversation.id.toLong(),
                                 newTitle = newTitle
                             )
                             onDismiss()
@@ -759,7 +759,7 @@ fun InviteToConversationDialog(
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             items(privateChannels) { conv ->
-                                val isSelected = selectedId == conv.id
+                                val isSelected = selectedId == conv.id.toLong()
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -768,7 +768,7 @@ fun InviteToConversationDialog(
                                             if (isSelected) MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f)
                                             else MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f)
                                         )
-                                        .clickable { selectedId = conv.id }
+                                        .clickable { selectedId = conv.id.toLong() }
                                         .padding(16.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.SpaceBetween

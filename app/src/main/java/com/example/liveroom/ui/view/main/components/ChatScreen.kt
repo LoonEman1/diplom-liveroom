@@ -43,6 +43,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -66,21 +67,29 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.example.liveroom.data.remote.dto.Message
 import com.example.liveroom.ui.components.CustomTextField
 import com.example.liveroom.ui.viewmodel.ServerViewModel
 import com.example.liveroom.R
 import com.example.liveroom.data.remote.dto.Role
+import com.example.liveroom.data.webrtc.CallStateManager
 import com.example.liveroom.ui.theme.ButtonColor
 import com.example.liveroom.ui.theme.DarkPrimary
 import com.example.liveroom.ui.theme.ErrorRed
 import com.example.liveroom.ui.theme.LightSurface
 import com.example.liveroom.ui.theme.SurfaceColor
+import com.example.liveroom.ui.view.main.components.common.CallHeader
 import com.example.liveroom.ui.view.main.components.common.ConfirmationDialog
 import com.example.liveroom.ui.view.main.components.common.InviteToConversationDialog
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
+
+val LocalCallStateManager = compositionLocalOf<CallStateManager> {
+    error("CompositionLocal CallStateManager not present")
+}
+
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class)
 @Composable
@@ -102,11 +111,15 @@ fun ChatScreen(
     var messageToDelete by remember { mutableStateOf<Message?>(null) }
 
     var showContextMenu by remember { mutableStateOf(false) }
-    var contextMenuOffset by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
+    var contextMenuOffset by remember { mutableStateOf(Offset.Zero) }
     var selectedMessageForMenu by remember { mutableStateOf<Message?>(null) }
 
     val myRole = serverViewModel.selectedServer.collectAsState()
     val canManageMessages = (myRole.value?.myRole?.name == "ADMIN" || myRole.value?.myRole?.name == "OWNER")
+
+
+    val activeCall by serverViewModel.activeCall.collectAsState()
+    val incomingCall by serverViewModel.incomingCallDialog.collectAsState()
 
     ConfirmationDialog(
         showDialog = messageToDelete != null,
@@ -130,6 +143,11 @@ fun ChatScreen(
         }
     }
 
+    LaunchedEffect(activeCall) {
+        Log.d("ChatDebug", "ActiveCall changed: ${activeCall?.callId}")
+
+    }
+
     BackHandler {
         onBackToServer()
     }
@@ -141,6 +159,15 @@ fun ChatScreen(
                     androidx.compose.material3.CircularProgressIndicator()
                 }
             } else {
+
+                CallHeader(
+                    activeCall = activeCall,
+                    conversationId = conversationId,
+                    serverViewModel = serverViewModel,
+                    modifier = Modifier.fillMaxWidth(),
+                    currentUserId
+                )
+
                 LazyColumn(
                     modifier = Modifier
                         .weight(1f)
