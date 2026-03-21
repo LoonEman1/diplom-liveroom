@@ -47,8 +47,14 @@ import com.example.liveroom.data.model.CallEvent
 import com.example.liveroom.data.model.IncomingCall
 import com.example.liveroom.data.model.IceCandidateDto
 import com.example.liveroom.data.model.CallClientMessage
+import com.example.liveroom.data.remote.dto.PeriodSummaryDto
+import com.example.liveroom.data.remote.dto.PeriodUserDto
+import com.example.liveroom.data.remote.dto.SessionDetailDto
+import com.example.liveroom.data.remote.dto.SessionSummaryDto
+import com.example.liveroom.data.repository.UserRepository
 import com.example.liveroom.data.webrtc.WebRtcManager
 import com.google.gson.JsonObject
+import kotlinx.coroutines.async
 
 
 @HiltViewModel
@@ -56,7 +62,8 @@ class ServerViewModel @Inject constructor(
     private val serverRepository: ServerRepository,
     private val webSocketManager: WebSocketManager,
     private val callStateManager: CallStateManager,
-    private val webRtcManager: WebRtcManager
+    private val webRtcManager: WebRtcManager,
+    private val userRepository: UserRepository
 ) : ViewModel(), WebRtcManager.SignalingDelegate {
 
     private val _servers = MutableStateFlow<List<Server>>(emptyList())
@@ -103,11 +110,43 @@ class ServerViewModel @Inject constructor(
     val activeCall = callStateManager.activeCall
     val incomingCallDialog = callStateManager.incomingCallDialog
 
+    private val _analyticsSessions = MutableStateFlow<List<SessionSummaryDto>>(emptyList())
+    val analyticsSessions: StateFlow<List<SessionSummaryDto>> = _analyticsSessions.asStateFlow()
+
+    private val _selectedSessionDetail = MutableStateFlow<SessionDetailDto?>(null)
+    val selectedSessionDetail: StateFlow<SessionDetailDto?> = _selectedSessionDetail.asStateFlow()
+
+    private val _periodSummary = MutableStateFlow<PeriodSummaryDto?>(null)
+    val periodSummary: StateFlow<PeriodSummaryDto?> = _periodSummary.asStateFlow()
+
+    private val _periodUsers = MutableStateFlow<List<PeriodUserDto>>(emptyList())
+    val periodUsers: StateFlow<List<PeriodUserDto>> = _periodUsers.asStateFlow()
+
+    private val _isAnalyticsLoading = MutableStateFlow(false)
+    val isAnalyticsLoading: StateFlow<Boolean> = _isAnalyticsLoading.asStateFlow()
+
+    private var myUserId: Long = -1
+
+
     init {
         webRtcManager.signalingDelegate = this
 
 
+        viewModelScope.launch {
+            userRepository.getUserInfo().onSuccess { info ->
+                myUserId = info.userId.toLong()
+            }
+        }
+
     }
+
+    fun clearAnalyticsData() {
+        _analyticsSessions.value = emptyList()
+        _selectedSessionDetail.value = null
+        _periodSummary.value = null
+        _periodUsers.value = emptyList()
+    }
+
 
 
     private fun subscribeToCalls(serverId: Long, conversationId: Long, userId: Int) {
@@ -866,6 +905,13 @@ class ServerViewModel @Inject constructor(
             "call.started" -> {
                 val call = parseCallStart(payload as Map<*, *>)
                 callStateManager.updateActiveCall(call)
+
+                if (call.startedByUserId == myUserId) {
+                    Log.d("CallDebug", "👑 I started the call → auto JOIN")
+                    joinCall(call.callId)
+                } else {
+                    Log.d("CallDebug", "👀 Call started by ${call.startedByUserId}, waiting for manual join")
+                }
             }
             "call.participant.joined" -> {
                 val event = parseParticipant(payload as Map<*, *>)
@@ -889,11 +935,31 @@ class ServerViewModel @Inject constructor(
                 }
             }
             "call.ended" -> {
+                Log.d("CallDebug", "📴 CALL ENDED")
                 val ended = parseCallEnded(payload as Map<*, *>)
                 callStateManager.endCall(ended.callId)
+                webRtcManager.closeCall(ended.callId)
             }
             "call.signal" -> {
                 handleCallSignal(payload as Map<*, *>)
+            }
+            "call.participant.left" -> {
+                val event = parseParticipant(payload as Map<*, *>)
+
+                callStateManager.participantLeft(event.callId, event.userId)
+
+                val activeCall = callStateManager.activeCall.value ?: return
+
+                val remaining = callStateManager.getParticipantsCount(event.callId)
+
+                Log.d("CallDebug", "👤 User ${event.userId} left, remaining=$remaining")
+
+                if (remaining <= 1) {
+                    Log.d("CallDebug", "⚠️ Last participant → ending locally")
+
+                    callStateManager.endCall(event.callId, "last participant left")
+                    webRtcManager.closeCall(event.callId)
+                }
             }
         }
     }
@@ -905,7 +971,8 @@ class ServerViewModel @Inject constructor(
             conversationId = (payload["conversationId"] as Number).toLong(),
             kind = CallKind.valueOf(payload["kind"] as String),
             participants = emptySet(),
-            startedAt = payload["startedAt"] as String
+            startedAt = payload["startedAt"] as String,
+            startedByUserId = (payload["startedByUserId"] as Number).toLong()
         )
     }
 
@@ -973,11 +1040,33 @@ class ServerViewModel @Inject constructor(
 
             CallSignalType.LEAVE -> {
                 val callId = payload["callId"] as? String ?: return
-                val userId = (payload["fromUserId"] as? Number)?.toLong() ?: return
+                val userIdLeft = (payload["fromUserId"] as? Number)?.toLong() ?: return
+                val myUserId = // достань свой ID (из репозитория или константы)
 
-                Log.d("CallSignal", "👋 User $userId LEFT $callId")
-                callStateManager.participantLeft(callId, userId)
-                webRtcManager.closeCall(callId)
+                    Log.d("CallSignal", "👋 User $userIdLeft LEFT $callId")
+
+                // 1. Обновляем UI (удаляем человека из списка)
+                callStateManager.participantLeft(callId, userIdLeft)
+
+                if (userIdLeft == myUserId.toLong()) {
+                    // Я ВЫШЕЛ: Закрываем всё
+                    Log.d("CallSignal", "🛑 I left the call. Cleaning up everything.")
+                    webRtcManager.closeCall(callId)
+                    // Хедер скроется, так как participantLeft занулит activeCall для меня
+                } else {
+                    // КТО-ТО ВЫШЕЛ: Закрываем поток только с ним
+                    Log.d("CallSignal", "✂️ Closing connection with user $userIdLeft")
+                    webRtcManager.closeConnectionForUser(userIdLeft)
+
+                    // Проверяем, остался ли кто-то еще кроме меня
+                    val currentCall = callStateManager.activeCall.value
+                    // Если в списке остался 0 человек или только я один (зависит от того, хранишь ли ты себя в списке)
+                    if (currentCall == null || currentCall.participants.isEmpty()) {
+                        Log.d("CallSignal", "📉 No one left. Ending call session.")
+                        webRtcManager.closeCall(callId)
+                        callStateManager.endCall(callId)
+                    }
+                }
             }
 
             CallSignalType.END -> {
@@ -990,6 +1079,9 @@ class ServerViewModel @Inject constructor(
             CallSignalType.OFFER -> {
                 val callId = payload["callId"] as? String ?: return
                 val fromUserId = (payload["fromUserId"] as? Number)?.toLong() ?: return
+
+                callStateManager.participantJoined(callId, fromUserId)
+
                 val sdp = payload["sdp"] as? String ?: return
                 val kind = (payload["kind"] as? String)
                     ?.let {
@@ -1165,6 +1257,71 @@ class ServerViewModel @Inject constructor(
             "/app/calls/servers/$serverId/conversations/$conversationId",
             Gson().toJson(msg)
         )
+    }
+
+    fun loadAnalyticsSessions(serverId: Int, conversationId: Long) {
+        viewModelScope.launch {
+            _isAnalyticsLoading.value = true
+            _error.value = null
+            val result = withContext(Dispatchers.IO) {
+                serverRepository.getAnalyticsSessions(serverId, conversationId)
+            }
+            result.onSuccess { sessions ->
+                _analyticsSessions.value = sessions
+            }.onFailure { exception ->
+                _error.value = exception.message ?: "Failed to load sessions"
+            }
+            _isAnalyticsLoading.value = false
+        }
+    }
+
+    fun loadSessionDetails(serverId: Int, conversationId: Long, sessionId: Long) {
+        viewModelScope.launch {
+            _isAnalyticsLoading.value = true
+            _error.value = null
+            val result = withContext(Dispatchers.IO) {
+                serverRepository.getAnalyticsSessionDetails(serverId, conversationId, sessionId)
+            }
+            result.onSuccess { details ->
+                _selectedSessionDetail.value = details
+            }.onFailure { exception ->
+                _error.value = exception.message ?: "Failed to load session details"
+            }
+            _isAnalyticsLoading.value = false
+        }
+    }
+
+    fun loadPeriodAnalytics(serverId: Int, conversationId: Long, from: String, to: String) {
+        viewModelScope.launch {
+            _isAnalyticsLoading.value = true
+            _error.value = null
+
+            try {
+                val summaryDeferred = async {
+                    serverRepository.getAnalyticsPeriodSummary(serverId, conversationId, from, to)
+                }
+                val usersDeferred = async {
+                    serverRepository.getAnalyticsPeriodUsers(serverId, conversationId, from, to)
+                }
+
+                val summaryResult = summaryDeferred.await()
+                val usersResult = usersDeferred.await()
+
+                if (summaryResult.isSuccess && usersResult.isSuccess) {
+                    _periodSummary.value = summaryResult.getOrNull()
+                    _periodUsers.value = usersResult.getOrNull() ?: emptyList()
+                } else {
+                    val summaryError = summaryResult.exceptionOrNull()?.message
+                    val usersError = usersResult.exceptionOrNull()?.message
+                    _error.value = summaryError ?: usersError ?: "Unknown analytics error"
+                }
+            } catch (e: Exception) {
+                Log.e("ServerViewModel", "Period analytics error: ${e.message}")
+                _error.value = e.message ?: "Failed to load period analytics"
+            } finally {
+                _isAnalyticsLoading.value = false
+            }
+        }
     }
 }
 

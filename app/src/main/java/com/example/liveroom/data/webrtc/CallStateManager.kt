@@ -36,12 +36,23 @@ class CallStateManager @Inject constructor() {
     private val _incomingCallDialog = MutableStateFlow<IncomingCall?>(null)
     val incomingCallDialog = _incomingCallDialog.asStateFlow()
 
+    private val participants = mutableMapOf<String, MutableSet<Long>>()
+
     fun updateActiveCall(call: ActiveCall) {
-        _activeCall.value = call
+        _activeCall.value = call.copy(
+            participants = call.participants
+        )
+
+        participants[call.callId] = mutableSetOf(call.startedByUserId)
+
         scope.launch { _callEvents.emit(CallEvent.Started(call)) }
     }
 
     fun participantJoined(callId: String, userId: Long) {
+
+        val set = participants.getOrPut(callId) { mutableSetOf() }
+        set.add(userId)
+
         _activeCall.update { current ->
             if (current?.callId == callId) {
                 current.copy(participants = current.participants + userId)  // новый Set!
@@ -50,7 +61,12 @@ class CallStateManager @Inject constructor() {
         Log.d("CallDebug", "Participant $userId joined ${callId}, total: ${_activeCall.value?.participants?.size}")
     }
 
+    fun getParticipantsCount(callId: String): Int {
+        return participants[callId]?.size ?: 0
+    }
+
     fun participantLeft(callId: String, userId: Long) {
+        participants[callId]?.remove(userId)
         _activeCall.update { current ->
             if (current?.callId == callId) {
                 current.copy(participants = current.participants - userId)
@@ -62,6 +78,7 @@ class CallStateManager @Inject constructor() {
         scope.launch {
             _callEvents.emit(CallEvent.Ended(callId, reason))
             _activeCall.value = null
+            participants.remove(callId)
         }
     }
 

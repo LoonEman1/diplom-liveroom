@@ -33,7 +33,7 @@ fun CallHeader(
     conversationId: Long,
     serverViewModel: ServerViewModel,
     modifier: Modifier = Modifier,
-    userId : Int
+    userId: Int
 ) {
     val isParticipant = activeCall?.participants?.any { it.toInt() == userId } == true
 
@@ -53,7 +53,7 @@ fun CallHeader(
             Icon(
                 imageVector = Icons.Default.Phone,
                 contentDescription = null,
-                tint = if (activeCall != null) Color.Green else linkTextColor,
+                tint = if (activeCall != null) Color.Green else MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(24.dp)
             )
             Spacer(modifier = Modifier.width(12.dp))
@@ -80,25 +80,30 @@ fun CallHeader(
             Spacer(modifier = Modifier.width(12.dp))
 
             Button(
-                enabled = activeCall == null || !isParticipant,
                 onClick = {
-                    if (activeCall != null) {
-                        if (!isParticipant) {
+                    when {
+                        activeCall == null -> {
+                            val serverId = serverViewModel.selectedServer.value?.id?.toLong() ?: return@Button
+                            serverViewModel.startCall(serverId, conversationId)
+                        }
+                        isParticipant -> {
+                            serverViewModel.leaveCall(activeCall.callId)
+                        }
+                        else -> {
                             serverViewModel.joinCall(activeCall.callId)
                         }
-                    } else {
-                        val serverId = serverViewModel.selectedServer.value?.id?.toLong()
-                            ?: return@Button
-                        serverViewModel.startCall(serverId, conversationId)
                     }
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isParticipant) Color.Red else MaterialTheme.colorScheme.primary,
+                    contentColor = Color.White
+                )
             ) {
                 Text(
                     text = when {
                         activeCall == null -> "Создать"
-                        isParticipant -> "В звонке"
-                        else -> "Присоединиться"
+                        isParticipant -> "Покинуть"
+                        else -> "Войти"
                     },
                     fontWeight = FontWeight.Bold
                 )

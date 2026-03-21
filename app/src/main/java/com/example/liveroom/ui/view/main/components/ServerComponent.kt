@@ -123,6 +123,24 @@ fun ServerComponent(
         conversations.filter { it.isPrivate }
     }
 
+    LaunchedEffect(conversations) {
+        if (conversations.isNotEmpty() && server != null) {
+            val firstConvoId = 4L
+            val serverId = server.id
+
+            Log.d("AnalyticsTest", "Fetching test analytics for server: $serverId, convo: $firstConvoId")
+
+            serverViewModel.loadAnalyticsSessions(serverId, firstConvoId)
+
+            serverViewModel.loadPeriodAnalytics(
+                serverId = serverId,
+                conversationId = firstConvoId,
+                from = "2024-01-01T00:00:00Z",
+                to = "2026-12-31T23:59:59Z"
+            )
+        }
+    }
+
 
     Column(modifier = Modifier.fillMaxHeight()) {
         if(isLoading) {

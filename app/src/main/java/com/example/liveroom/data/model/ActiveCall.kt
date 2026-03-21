@@ -30,7 +30,8 @@ data class ActiveCall(
     val kind: CallKind,
     val participants: Set<Long> = emptySet(),
     val startedAt: String,
-    val duration: String = "00:00"
+    val duration: String = "00:00",
+    val startedByUserId: Long
 )
 
 sealed class CallEvent {

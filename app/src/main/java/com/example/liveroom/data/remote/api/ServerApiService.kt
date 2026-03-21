@@ -9,9 +9,13 @@ import com.example.liveroom.data.remote.dto.InviteRequest
 import com.example.liveroom.data.remote.dto.InviteUserRequest
 import com.example.liveroom.data.remote.dto.JoinByTokenRequest
 import com.example.liveroom.data.remote.dto.Message
+import com.example.liveroom.data.remote.dto.PeriodSummaryDto
+import com.example.liveroom.data.remote.dto.PeriodUserDto
 import com.example.liveroom.data.remote.dto.SendMessageRequest
 import com.example.liveroom.data.remote.dto.Server
 import com.example.liveroom.data.remote.dto.ServerMember
+import com.example.liveroom.data.remote.dto.SessionDetailDto
+import com.example.liveroom.data.remote.dto.SessionSummaryDto
 import com.example.liveroom.data.remote.dto.UpdateServerRequest
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
@@ -175,5 +179,35 @@ interface ServerApiService {
         @Path("conversationId") conversationId: Long,
         @Body request: InviteRequest
     ): Response<Unit>
+
+    @GET("api/servers/{serverId}/conversations/{conversationId}/analytics/sessions")
+    suspend fun getAnalyticsSessions(
+        @Path("serverId") serverId: Int,
+        @Path("conversationId") conversationId: Long
+    ): List<SessionSummaryDto>
+
+    @GET("api/servers/{serverId}/conversations/{conversationId}/analytics/sessions/{sessionId}")
+    suspend fun getAnalyticsSessionDetails(
+        @Path("serverId") serverId: Int,
+        @Path("conversationId") conversationId: Long,
+        @Path("sessionId") sessionId: Long
+    ): SessionDetailDto
+
+    @GET("api/servers/{serverId}/conversations/{conversationId}/analytics/period")
+    suspend fun getAnalyticsPeriodSummary(
+        @Path("serverId") serverId: Int,
+        @Path("conversationId") conversationId: Long,
+        @Query("from") from: String,
+        @Query("to") to: String
+    ): PeriodSummaryDto
+
+    @GET("api/servers/{serverId}/conversations/{conversationId}/analytics/users/period")
+    suspend fun getAnalyticsPeriodUsers(
+        @Path("serverId") serverId: Int,
+        @Path("conversationId") conversationId: Long,
+        @Query("from") from: String,
+        @Query("to") to: String
+    ): List<PeriodUserDto>
+
 }
 

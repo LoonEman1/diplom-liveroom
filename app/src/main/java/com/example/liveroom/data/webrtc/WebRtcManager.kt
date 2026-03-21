@@ -41,14 +41,12 @@ class WebRtcManager @Inject constructor(
     private val pendingIceCandidates = mutableMapOf<String, MutableList<IceCandidate>>()
 
     init {
-        // 1. Инициализация WebRTC
         PeerConnectionFactory.initialize(
             PeerConnectionFactory.InitializationOptions.builder(context)
                 .setEnableInternalTracer(true)
                 .createInitializationOptions()
         )
 
-        // 2. Фабрика кодеков
         val encoderFactory = DefaultVideoEncoderFactory(
             eglBase.eglBaseContext,
             true,
@@ -56,14 +54,11 @@ class WebRtcManager @Inject constructor(
         )
         val decoderFactory = DefaultVideoDecoderFactory(eglBase.eglBaseContext)
 
-        // 3. Создание PeerConnectionFactory
         peerConnectionFactory = PeerConnectionFactory.builder()
             .setVideoEncoderFactory(encoderFactory)
             .setVideoDecoderFactory(decoderFactory)
             .createPeerConnectionFactory()
 
-        // 4. Подготовка микрофона
-        createLocalAudioTrack()
     }
 
     interface SignalingDelegate {
@@ -143,7 +138,8 @@ class WebRtcManager @Inject constructor(
         val pc = peerConnectionFactory.createPeerConnection(rtcConfig, observer)
             ?: error("Failed to create PeerConnection")
 
-        // ✅ Unified Plan → addTrack instead of addStream
+        startLocalAudioIfNeeded()
+
         localAudioTrack?.let { track ->
             pc.addTrack(track, listOf("local_stream_$callId"))
         }
@@ -262,7 +258,50 @@ class WebRtcManager @Inject constructor(
     }
 
     fun closeCall(callId: String) {
-        peerConnections.remove(callId)?.close()
+        Log.d("WebRTC", "🛑 Closing call: $callId")
+
+        val pc = peerConnections.remove(callId)
+        pc?.close()
+        pc?.dispose()
+
         remoteUserIds.remove(callId)
+        pendingIceCandidates.remove(callId)
+
+        stopLocalAudio()
+    }
+
+    private fun stopLocalAudio() {
+        Log.d("WebRTC", "🎤 Stopping local audio track")
+        localAudioTrack?.setEnabled(false)
+        localAudioTrack?.dispose()
+        localAudioTrack = null
+
+        localAudioSource?.dispose()
+        localAudioSource = null
+    }
+
+    fun closeConnectionForUser(userId: Long) {
+        val callIdEntry = remoteUserIds.entries.find { it.value == userId }
+        val callId = callIdEntry?.key ?: return
+
+        Log.d("WebRTC", "✂️ Closing connection for user: $userId in call $callId")
+
+        val pc = peerConnections.remove(callId)
+        pc?.close()
+        pc?.dispose()
+
+        remoteUserIds.remove(callId)
+        pendingIceCandidates.remove(callId)
+
+        if (peerConnections.isEmpty()) {
+            stopLocalAudio()
+        }
+    }
+
+
+    fun startLocalAudioIfNeeded() {
+        if (localAudioTrack == null) {
+            createLocalAudioTrack()
+        }
     }
 }
