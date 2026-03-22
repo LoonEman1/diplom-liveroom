@@ -1308,8 +1308,10 @@ class ServerViewModel @Inject constructor(
                 val usersResult = usersDeferred.await()
 
                 if (summaryResult.isSuccess && usersResult.isSuccess) {
-                    _periodSummary.value = summaryResult.getOrNull()
+                    val summary = summaryResult.getOrNull()
+                    _periodSummary.value = summary
                     _periodUsers.value = usersResult.getOrNull() ?: emptyList()
+                    _analyticsSessions.value = summary?.sessions ?: emptyList()
                 } else {
                     val summaryError = summaryResult.exceptionOrNull()?.message
                     val usersError = usersResult.exceptionOrNull()?.message

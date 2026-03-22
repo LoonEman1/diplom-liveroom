@@ -110,4 +110,11 @@
     <string name="select_private_channel">Select the private channel to which you want to invite the user</string>
     <string name="no_available_private_channels">There are no private channels</string>
     <string name="channel">Channel</string>
+    <string name="analytics_title">Server analytics</string>
+    <string name="analytics">Analytics</string>
+    <string name="analytics_check">View server analytics</string>
+    <string name="no_available_chats">There are no available chats for analytics</string>
+    <string name="from">From</string>
+    <string name="to">Until</string>
+    <string name="choose_data_range">Select a date range</string>
 </resources>
