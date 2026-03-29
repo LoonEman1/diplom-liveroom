@@ -147,7 +147,7 @@ interface ServerApiService {
     suspend fun getMessages(
         @Path("serverId") serverId: Long,
         @Path("conversationId") conversationId: Long,
-        @Query("limit") limit: Int = 50,
+        @Query("limit") limit: Int = 150,
         @Query("beforeMessageId") beforeMessageId: Long? = null
     ): List<Message>
 

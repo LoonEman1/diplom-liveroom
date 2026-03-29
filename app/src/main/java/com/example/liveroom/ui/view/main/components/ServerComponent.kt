@@ -733,7 +733,7 @@ fun MemberRow(
             containerColor = when (member.role.name) {
                 "OWNER" -> ErrorRed
                 "ADMIN" -> linkTextColor
-                else -> Color.Black
+                else -> MaterialTheme.colorScheme.outline
             }
         ) {
             Text(
