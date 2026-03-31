@@ -47,6 +47,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.example.liveroom.R
@@ -223,7 +224,8 @@ fun ServerDialog(
                     onClick = onDismiss,
                     modifier = Modifier.weight(1f).height(48.dp),
                     text = stringResource(R.string.cancel),
-                    containerColor = MaterialTheme.colorScheme.error
+                    containerColor = MaterialTheme.colorScheme.error,
+                    fontSize = 12.sp
                 )
 
                 val string = when (dialogMode) {
@@ -249,7 +251,8 @@ fun ServerDialog(
                             )
                         )
                     },
-                    modifier = Modifier.weight(1f).height(48.dp)
+                    modifier = Modifier.weight(1f).height(48.dp),
+                    fontSize = 12.sp
                 )
             }
         }
