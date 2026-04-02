@@ -22,6 +22,7 @@ import com.example.liveroom.R
 import com.example.liveroom.data.model.UserEvent
 import com.example.liveroom.data.remote.dto.Server
 import com.example.liveroom.ui.navigation.Screen
+import com.example.liveroom.ui.view.main.components.common.AnalyticsScreen
 import com.example.liveroom.ui.view.main.components.common.BottomNavigationBar
 import com.example.liveroom.ui.view.main.components.common.LeftNavigation
 import com.example.liveroom.ui.view.main.components.common.TopDynamicHeader
@@ -174,6 +175,19 @@ fun MainLayout(
                                     }
                                 )
                             }
+                        }
+                    }
+                    "analytics" -> {
+                        val conversations by serverViewModel.conversations.collectAsState()
+                        if (selectedServer != null) {
+                            AnalyticsScreen(
+                                conversations = conversations,
+                                serverViewModel = serverViewModel,
+                                serverId = selectedServer!!.id,
+                                onBack = {
+                                    selectedTab = "server"
+                                }
+                            )
                         }
                     }
                 }

@@ -111,7 +111,8 @@ fun PrimaryButton(
     icon : (@Composable () -> Unit)? = null,
     containerColor: Color = ButtonColor,
     debounceMs: Long = 1000L,
-    enabled: Boolean =  true
+    enabled: Boolean =  true,
+    fontSize: TextUnit = 14.sp
 ) {
     val lastClickTime = remember { mutableLongStateOf(0L) }
 
@@ -138,7 +139,8 @@ fun PrimaryButton(
         Text(
             text,
             style = MaterialTheme.typography.titleMedium,
-            color = Color.White
+            color = Color.White,
+            fontSize = fontSize
         )
 
         if (icon != null) {

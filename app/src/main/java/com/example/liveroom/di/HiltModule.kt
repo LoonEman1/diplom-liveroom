@@ -15,6 +15,8 @@ import com.example.liveroom.data.remote.dto.toRequestBody
 import com.example.liveroom.data.repository.ServerRepository
 import com.example.liveroom.data.repository.TokenRepository
 import com.example.liveroom.data.repository.UserRepository
+import com.example.liveroom.data.webrtc.CallStateManager
+import com.example.liveroom.data.webrtc.WebRtcManager
 import com.example.liveroom.ui.viewmodel.UserViewModel
 import dagger.Module
 import dagger.Provides
@@ -85,6 +87,19 @@ class HiltModule {
     fun provideAuthService(retrofit: Retrofit): AuthService {
         return retrofit.create(AuthService::class.java)
     }
+
+    @Singleton
+    @Provides
+    fun provideCallStateManager(): CallStateManager {
+        return CallStateManager()
+    }
+
+    @Singleton
+    @Provides
+    fun provideWebRtcManager(
+        @ApplicationContext context: Context
+    ): WebRtcManager = WebRtcManager(context)
+
 
     @Singleton
     @Provides

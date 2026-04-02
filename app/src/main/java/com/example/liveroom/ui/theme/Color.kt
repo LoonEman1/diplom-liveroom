@@ -23,16 +23,17 @@ val DarkBackgroundSecondary = Color(0xFF0F0A2F)
 val ButtonColor = Color(0xFF3713EC)
 
 // Additional theme colors
-val OutlineColor = Color(0xFF383A40)
+val OutlineColor =  Color(0xFF75727C)
 
 // Light theme colors
 val LightBackground = Color(0xFFFAFAFA)
 val LightSurface = Color(0xFFFFFFFF)
 val LightTextPrimary = Color(0xFF101018)
 val LightTextSecondary = Color(0xFFDADADA)
-val LightOutlineColor = Color(0xFFE0E0E0)
+val LightOutlineColor = Color(0xFFBAB4BE)
 val linkTextColor = Color(0xFF5865F2)
 val LightPrimary = Color(0xFFB4B4B4)
+
 
 
 val BarColor = Color(0xFF171515)

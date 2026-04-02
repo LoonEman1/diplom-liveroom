@@ -110,4 +110,23 @@
     <string name="select_private_channel">Select the private channel to which you want to invite the user</string>
     <string name="no_available_private_channels">There are no private channels</string>
     <string name="channel">Channel</string>
+    <string name="analytics_title">Server analytics</string>
+    <string name="analytics">Analytics</string>
+    <string name="analytics_check">View server analytics</string>
+    <string name="no_available_chats">There are no available chats for analytics</string>
+    <string name="from">From</string>
+    <string name="to">Until</string>
+    <string name="choose_data_range">Select a date range</string>
+    <string name="duration">Duration</string>
+    <string name="status">Status</string>
+    <string name="sessions">Sessions</string>
+    <string name="no_sessions">No sessions for the selected period</string>
+    <string name="no_user_activity">No user activity</string>
+    <string name="score">Activity score</string>
+    <string name="completed_sessions">Listened to the end</string>
+    <string name="analytics_avg_time">On average: %1$d sec</string>
+    <string name="analytics_presence_ratio">Participation: %1$d%%</string>
+    <string name="session">Session</string>
+    <string name="sec">sec</string>
+    <string name="date_error">The start date cannot be later than the end date</string>
 </resources>

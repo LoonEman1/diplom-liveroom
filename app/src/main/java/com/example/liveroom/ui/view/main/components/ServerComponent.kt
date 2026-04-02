@@ -78,6 +78,8 @@ import com.example.liveroom.ui.theme.ButtonColor
 import com.example.liveroom.ui.theme.ErrorRed
 import com.example.liveroom.ui.theme.linkTextColor
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.runtime.toLong
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -122,6 +124,24 @@ fun ServerComponent(
         conversations.filter { it.isPrivate }
     }
 
+    LaunchedEffect(conversations) {
+//        if (conversations.isNotEmpty() && server != null) {
+//            val firstConvoId = 4L
+//            val serverId = server.id
+//
+//            Log.d("AnalyticsTest", "Fetching test analytics for server: $serverId, convo: $firstConvoId")
+//
+//            serverViewModel.loadAnalyticsSessions(serverId, firstConvoId)
+//
+//            serverViewModel.loadPeriodAnalytics(
+//                serverId = serverId,
+//                conversationId = firstConvoId,
+//                from = "2024-01-01T00:00:00Z",
+//                to = "2026-12-31T23:59:59Z"
+//            )
+//        }
+    }
+
 
     Column(modifier = Modifier.fillMaxHeight()) {
         if(isLoading) {
@@ -132,6 +152,49 @@ fun ServerComponent(
                 CircularProgressIndicator()
             }
         }
+
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp)
+                .clickable { onTabChange("analytics") },
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondary),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Info,
+                    contentDescription = "Analytics",
+                    tint = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
+                    Text(
+                        text = stringResource(R.string.analytics),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = stringResource(R.string.analytics_check),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    )
+                }
+                Spacer(modifier = Modifier.weight(1f))
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowDown,
+                    contentDescription = null,
+                    modifier = Modifier.offset(y = 0.dp).size(20.dp),
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
+            }
+        }
+
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -184,6 +247,12 @@ fun ServerComponent(
                     modifier = Modifier.heightIn(max = 300.dp)
                 ) {
                     items(members) { member ->
+                        HorizontalDivider(
+                            color = MaterialTheme.colorScheme.background,
+                            thickness = 1.dp,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                        )
                         MemberRow(
                             member,
                             onLongPress = { offset ->
@@ -193,6 +262,12 @@ fun ServerComponent(
                                 showMemberMenu = true
                                 }
                             }
+                        )
+                        HorizontalDivider(
+                            color = MaterialTheme.colorScheme.background,
+                            thickness = 1.dp,
+                            modifier = Modifier
+                                .fillMaxWidth()
                         )
                     }
                 }
@@ -250,12 +325,12 @@ fun ServerComponent(
                             showEditDialog = true
                         },
                         onDeleteConversation = { name ->
-                            deletingConversationId = convo.id
+                            deletingConversationId = convo.id.toLong()
                             showDeleteDialog = true
                             deletingConversationName = convo.title
                         },
                         onClickConversation = { convoId ->
-                            serverViewModel.setCurrentConversation(convoId)
+                            serverViewModel.setCurrentConversation(convoId, currentUserId)
                             onTabChange("chat")
                         },
                         modifier = Modifier.padding(horizontal = 16.dp)
@@ -300,7 +375,7 @@ fun ServerComponent(
     }
 
     if (showDeleteDialog && deletingConversationId != null) {
-        val currentConvo = conversations.find { it.id == deletingConversationId }
+        val currentConvo = conversations.find { it.id.toLong() == deletingConversationId }
         currentConvo?.let { convo ->
             DeleteConversationDialog(
                 conversationName = deletingConversationName,
@@ -360,7 +435,7 @@ fun ConversationItem(
             .padding(vertical = 4.dp)
             .pointerInput(Unit) {
                 detectTapGestures(
-                    onTap = { onClickConversation(convo.id) },
+                    onTap = { onClickConversation(convo.id.toLong()) },
                     onLongPress = { offset ->
                         popupOffset = offset
                         showContextMenu = true
@@ -605,7 +680,6 @@ fun MemberRow(
     onLongPress: (Offset) -> Unit
 ) {
     var itemPosition by remember { mutableStateOf(Offset.Zero) }
-
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -641,6 +715,7 @@ fun MemberRow(
 
         Spacer(modifier = Modifier.width(12.dp))
 
+
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 member.username,
@@ -658,7 +733,7 @@ fun MemberRow(
             containerColor = when (member.role.name) {
                 "OWNER" -> ErrorRed
                 "ADMIN" -> linkTextColor
-                else -> Color.Black
+                else -> MaterialTheme.colorScheme.outline
             }
         ) {
             Text(

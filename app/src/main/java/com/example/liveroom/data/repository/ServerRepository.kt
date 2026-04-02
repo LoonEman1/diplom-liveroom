@@ -14,9 +14,13 @@ import com.example.liveroom.data.remote.dto.InviteRequest
 import com.example.liveroom.data.remote.dto.InviteUserRequest
 import com.example.liveroom.data.remote.dto.JoinByTokenRequest
 import com.example.liveroom.data.remote.dto.Message
+import com.example.liveroom.data.remote.dto.PeriodSummaryDto
+import com.example.liveroom.data.remote.dto.PeriodUserDto
 import com.example.liveroom.data.remote.dto.SendMessageRequest
 import com.example.liveroom.data.remote.dto.Server
 import com.example.liveroom.data.remote.dto.ServerMember
+import com.example.liveroom.data.remote.dto.SessionDetailDto
+import com.example.liveroom.data.remote.dto.SessionSummaryDto
 import com.example.liveroom.data.remote.dto.UpdateServerRequest
 import com.google.gson.Gson
 import kotlinx.coroutines.async
@@ -453,5 +457,46 @@ class ServerRepository @Inject constructor(
             Result.failure(e)
         }
     }
+
+    suspend fun getAnalyticsSessions(serverId: Int, conversationId: Long): Result<List<SessionSummaryDto>> {
+        return try {
+            val sessions = apiService.getAnalyticsSessions(serverId, conversationId)
+            Result.success(sessions)
+        } catch (e: Exception) {
+            Log.e("ServerRepo", "Analytics Sessions error: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getAnalyticsSessionDetails(serverId: Int, conversationId: Long, sessionId: Long): Result<SessionDetailDto> {
+        return try {
+            val details = apiService.getAnalyticsSessionDetails(serverId, conversationId, sessionId)
+            Result.success(details)
+        } catch (e: Exception) {
+            Log.e("ServerRepo", "Analytics Session Details error: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getAnalyticsPeriodSummary(serverId: Int, conversationId: Long, from: String, to: String): Result<PeriodSummaryDto> {
+        return try {
+            val summary = apiService.getAnalyticsPeriodSummary(serverId, conversationId, from, to)
+            Result.success(summary)
+        } catch (e: Exception) {
+            Log.e("ServerRepo", "Analytics Period Summary error: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getAnalyticsPeriodUsers(serverId: Int, conversationId: Long, from: String, to: String): Result<List<PeriodUserDto>> {
+        return try {
+            val users = apiService.getAnalyticsPeriodUsers(serverId, conversationId, from, to)
+            Result.success(users)
+        } catch (e: Exception) {
+            Log.e("ServerRepo", "Analytics Period Users error: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
 }
 

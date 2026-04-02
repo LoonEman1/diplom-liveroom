@@ -47,6 +47,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.example.liveroom.R
@@ -223,7 +224,8 @@ fun ServerDialog(
                     onClick = onDismiss,
                     modifier = Modifier.weight(1f).height(48.dp),
                     text = stringResource(R.string.cancel),
-                    containerColor = MaterialTheme.colorScheme.error
+                    containerColor = MaterialTheme.colorScheme.error,
+                    fontSize = 12.sp
                 )
 
                 val string = when (dialogMode) {
@@ -249,7 +251,8 @@ fun ServerDialog(
                             )
                         )
                     },
-                    modifier = Modifier.weight(1f).height(48.dp)
+                    modifier = Modifier.weight(1f).height(48.dp),
+                    fontSize = 12.sp
                 )
             }
         }
@@ -607,7 +610,7 @@ fun EditConversationDialog(
                         if (newTitle.isNotBlank() && newTitle != conversation.title) {
                             serverViewModel.updateConversation(
                                 serverId = serverId,
-                                conversationId = conversation.id,
+                                conversationId = conversation.id.toLong(),
                                 newTitle = newTitle
                             )
                             onDismiss()
@@ -759,7 +762,7 @@ fun InviteToConversationDialog(
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             items(privateChannels) { conv ->
-                                val isSelected = selectedId == conv.id
+                                val isSelected = selectedId == conv.id.toLong()
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -768,7 +771,7 @@ fun InviteToConversationDialog(
                                             if (isSelected) MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f)
                                             else MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f)
                                         )
-                                        .clickable { selectedId = conv.id }
+                                        .clickable { selectedId = conv.id.toLong() }
                                         .padding(16.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.SpaceBetween
