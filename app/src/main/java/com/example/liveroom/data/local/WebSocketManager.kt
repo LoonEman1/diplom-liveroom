@@ -12,6 +12,7 @@ import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import okio.ByteString
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicLong
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -39,6 +40,10 @@ class WebSocketManager @Inject constructor(
     private var reconnectRunnable: Runnable? = null
     private var heartbeatRunnable: Runnable? = null
 
+    private val subCounter = AtomicLong(1)
+    private val topicToSubId = mutableMapOf<String, String>()
+    private val desiredTopics = linkedSetOf<String>()
+
     fun connect() {
         val token = tokenManager.getAccessToken() ?: run {
             Log.e("WS", "❌ Нет токена!")
@@ -55,23 +60,45 @@ class WebSocketManager @Inject constructor(
         ws = client.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 Log.d("WS", "✅ OPEN: ${response.code}")
-                isConnected = true
-                reconnectAttempts = 0 // ✅ Сброс счётчика
 
                 val connectFrame = buildString {
                     append("CONNECT\n")
                     append("accept-version:1.2\n")
                     append("heart-beat:10000,10000\n")
+                    append("Authorization:Bearer $token\n")
                     append("\n\u0000")
                 }
+
                 webSocket.send(connectFrame)
                 _logs.tryEmit(">>> CONNECT отправлен")
-
-                // ✅ Запуск heartbeat
-                startHeartbeat()
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
+                if (text == "\n" || text.trim('\n', '\r', '\u0000').isEmpty()) {
+                    Log.v("WS", "💓 STOMP heartbeat received")
+                    return
+                }
+
+                if (text.startsWith("CONNECTED")) {
+                    Log.d("WS", "✅ STOMP CONNECTED")
+                    isConnected = true
+                    reconnectAttempts = 0
+                    startHeartbeat()
+                    resubscribeAll()
+                    return
+                }
+
+                if (text.startsWith("ERROR")) {
+                    Log.e("WS", "❌ STOMP ERROR: $text")
+                    isConnected = false
+                    stopHeartbeat()
+                    topicToSubId.clear()
+                    desiredTopics.clear()
+                    webSocket.cancel()
+                    scheduleReconnect()
+                    return
+                }
+
                 Log.d("WS", "📨 $text")
                 _logs.tryEmit(text)
                 onMessageReceived?.invoke(text)
@@ -84,14 +111,21 @@ class WebSocketManager @Inject constructor(
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                 Log.e("WS", "❌ Failure: ${t.message}")
                 Log.e("WS", "CODE: ${response?.code}")
+
                 isConnected = false
+                stopHeartbeat()
+                topicToSubId.clear()
+
                 scheduleReconnect()
             }
 
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
                 Log.d("WS", "🔌 CLOSED $code: $reason")
+
                 isConnected = false
                 stopHeartbeat()
+                topicToSubId.clear()
+
                 scheduleReconnect()
             }
         })
@@ -118,16 +152,19 @@ class WebSocketManager @Inject constructor(
     }
 
     private fun startHeartbeat() {
+        stopHeartbeat()
+
         heartbeatRunnable = object : Runnable {
             override fun run() {
                 if (isConnected) {
-                    ws?.send("SEND\nheart-beat:true\n\n${'\u0000'}")
-                    Log.v("WS", "💓 Heartbeat sent")
+                    ws?.send("\n")
+                    Log.v("WS", "💓 STOMP heartbeat sent")
+                    reconnectHandler.postDelayed(this, 10000)
                 }
-                reconnectHandler.postDelayed(this, 25000) // 25 сек
             }
         }
-        reconnectHandler.postDelayed(heartbeatRunnable!!, 25000)
+
+        reconnectHandler.postDelayed(heartbeatRunnable!!, 10000)
     }
 
     private fun stopHeartbeat() {
@@ -144,19 +181,60 @@ class WebSocketManager @Inject constructor(
     }
 
     fun subscribe(topic: String) {
+        desiredTopics.add(topic)
+
         if (!isConnected) {
-            Log.w("WS", "⚠️ Not connected, skipping SUB $topic")
+            Log.w("WS", "⏳ STOMP not connected yet, queued SUB $topic")
+            return
+        }
+
+        if (topicToSubId.containsKey(topic)) {
+            Log.d("WS", "⚠️ Already subscribed: $topic")
+            return
+        }
+
+        val subId = "sub-${subCounter.getAndIncrement()}"
+
+        val frame = buildString {
+            append("SUBSCRIBE\n")
+            append("id:$subId\n")
+            append("destination:$topic\n")
+            append("\n\u0000")
+        }
+
+        ws?.send(frame)
+        topicToSubId[topic] = subId
+
+        Log.d("WS", "📡 SUB $topic id=$subId")
+    }
+
+    fun unsubscribe(topic: String) {
+        desiredTopics.remove(topic)
+
+        val subId = topicToSubId.remove(topic)
+
+        if (!isConnected || subId == null) {
+            Log.d("WS", "📴 Remove queued/unconnected topic: $topic")
             return
         }
 
         val frame = buildString {
-            append("SUBSCRIBE\n")
-            append("id:${System.currentTimeMillis()}\n")
-            append("destination:$topic\n")
+            append("UNSUBSCRIBE\n")
+            append("id:$subId\n")
             append("\n\u0000")
         }
+
         ws?.send(frame)
-        Log.d("WS", "📡 SUB $topic")
+        Log.d("WS", "📴 UNSUB $topic id=$subId")
+    }
+
+    private fun resubscribeAll() {
+        val topics = desiredTopics.toList()
+        topicToSubId.clear()
+
+        topics.forEach { topic ->
+            subscribe(topic)
+        }
     }
 
     fun send(appPath: String, jsonBody: String) {
@@ -181,6 +259,10 @@ class WebSocketManager @Inject constructor(
         reconnectHandler.removeCallbacksAndMessages(null)
         stopHeartbeat()
         reconnectAttempts = 0
+        isConnected = false
+        topicToSubId.clear()
+        desiredTopics.clear()
+
         ws?.send("DISCONNECT\n\n\u0000")
         ws?.close(1000, "Manual disconnect")
         ws = null

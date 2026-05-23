@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -41,6 +42,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.compositionLocalOf
@@ -49,6 +51,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
@@ -82,6 +85,7 @@ import com.example.liveroom.ui.theme.SurfaceColor
 import com.example.liveroom.ui.view.main.components.common.CallHeader
 import com.example.liveroom.ui.view.main.components.common.ConfirmationDialog
 import com.example.liveroom.ui.view.main.components.common.InviteToConversationDialog
+import kotlinx.coroutines.flow.distinctUntilChanged
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
@@ -121,6 +125,11 @@ fun ChatScreen(
     val activeCall by serverViewModel.activeCall.collectAsState()
     val incomingCall by serverViewModel.incomingCallDialog.collectAsState()
 
+    val isLoadingOlderMessages by serverViewModel.isLoadingOlderMessages.collectAsState()
+    var initialScrollDone by remember(conversationId) { mutableStateOf(false) }
+    var previousMessagesSize by remember(conversationId) { mutableStateOf(0) }
+
+
     ConfirmationDialog(
         showDialog = messageToDelete != null,
         title = stringResource(R.string.delete_message_title),
@@ -132,14 +141,39 @@ fun ChatScreen(
         onDismiss = { messageToDelete = null }
     )
 
+    LaunchedEffect(messages.size) {
+        if (messages.isEmpty()) {
+            previousMessagesSize = 0
+            return@LaunchedEffect
+        }
+
+        val oldLastIndex = previousMessagesSize - 1
+        val lastVisibleIndex = lazyListState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+
+        val wasNearBottom = previousMessagesSize == 0 || lastVisibleIndex >= oldLastIndex - 2
+
+        previousMessagesSize = messages.size
+
+        if (wasNearBottom) {
+            lazyListState.animateScrollToItem(messages.lastIndex)
+        }
+    }
+
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
         keyboardController?.show()
     }
 
-    LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty()) {
-            lazyListState.animateScrollToItem(messages.lastIndex)
+//    LaunchedEffect(messages.size) {
+//        if (messages.isNotEmpty()) {
+//            lazyListState.animateScrollToItem(messages.lastIndex)
+//        }
+//    }
+
+    LaunchedEffect(conversationId, messages.isNotEmpty()) {
+        if (!initialScrollDone && messages.isNotEmpty()) {
+            lazyListState.scrollToItem(messages.lastIndex)
+            initialScrollDone = true
         }
     }
 
@@ -148,7 +182,25 @@ fun ChatScreen(
 
     }
 
+    LaunchedEffect(lazyListState, conversationId) {
+        snapshotFlow { lazyListState.firstVisibleItemIndex }
+            .distinctUntilChanged()
+            .collect { firstVisibleIndex ->
+                if (firstVisibleIndex <= 3 && messages.isNotEmpty()) {
+                    serverViewModel.loadOlderMessages(conversationId)
+                }
+            }
+    }
+
+    DisposableEffect(conversationId) {
+        onDispose {
+            serverViewModel.leaveCurrentConversation()
+        }
+    }
+
+
     BackHandler {
+        serverViewModel.leaveCurrentConversation()
         onBackToServer()
     }
 
@@ -178,6 +230,20 @@ fun ChatScreen(
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
+                    if (isLoadingOlderMessages) {
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                        }
+                    }
                     itemsIndexed(messages) { index, message ->
                         val showAuthor = if (index == 0) {
                             true
