@@ -127,6 +127,13 @@ class ServerViewModel @Inject constructor(
 
     private var myUserId: Long = -1
 
+    private val pageSize = 50
+
+    private val _isLoadingOlderMessages = MutableStateFlow(false)
+    val isLoadingOlderMessages: StateFlow<Boolean> = _isLoadingOlderMessages.asStateFlow()
+
+    private var hasMoreMessages = true
+
 
     init {
         webRtcManager.signalingDelegate = this
@@ -696,14 +703,24 @@ class ServerViewModel @Inject constructor(
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
+            hasMoreMessages = true
+
             try {
                 val serverId = selectedServer.value?.id?.toLong() ?: return@launch
+
                 val result = withContext(Dispatchers.IO) {
-                    serverRepository.getMessages(serverId, conversationId, limit = 50)
+                    serverRepository.getMessages(
+                        serverId = serverId,
+                        conversationId = conversationId,
+                        limit = pageSize,
+                        beforeMessageId = null
+                    )
                 }
-                result.onSuccess { messages ->
-                    _messages.value = messages.sortedBy { it.createdAt }
-                    Log.d("ServerVM", "Loaded ${messages.size} messages")
+
+                result.onSuccess { loadedMessages ->
+                    _messages.value = loadedMessages.sortedBy { it.createdAt }
+                    hasMoreMessages = loadedMessages.size == pageSize
+                    Log.d("ServerVM", "Loaded ${loadedMessages.size} messages")
                 }.onFailure { exception ->
                     _serverEvents.emit(ServerEvent.Error(exception.getServerErrorMessage()))
                 }
@@ -712,6 +729,51 @@ class ServerViewModel @Inject constructor(
                 _serverEvents.emit(ServerEvent.Error(e.message ?: "Load failed"))
             } finally {
                 _isLoading.value = false
+            }
+        }
+    }
+
+    fun loadOlderMessages(conversationId: Long) {
+        if (_isLoadingOlderMessages.value) return
+        if (!hasMoreMessages) return
+        if (_messages.value.isEmpty()) return
+
+        viewModelScope.launch {
+            _isLoadingOlderMessages.value = true
+
+            try {
+                val serverId = selectedServer.value?.id?.toLong() ?: return@launch
+                val oldestMessageId = _messages.value.minByOrNull { it.id }?.id ?: return@launch
+
+                val result = withContext(Dispatchers.IO) {
+                    serverRepository.getMessages(
+                        serverId = serverId,
+                        conversationId = conversationId,
+                        limit = pageSize,
+                        beforeMessageId = oldestMessageId
+                    )
+                }
+
+                result.onSuccess { olderMessages ->
+                    if (olderMessages.isEmpty()) {
+                        hasMoreMessages = false
+                        return@onSuccess
+                    }
+
+                    hasMoreMessages = olderMessages.size == pageSize
+
+                    _messages.value = (olderMessages + _messages.value)
+                        .distinctBy { it.id }
+                        .sortedBy { it.createdAt }
+
+                    Log.d("ServerVM", "Loaded older ${olderMessages.size} messages before $oldestMessageId")
+                }.onFailure { exception ->
+                    _serverEvents.emit(ServerEvent.Error(exception.getServerErrorMessage()))
+                }
+            } catch (e: Exception) {
+                Log.e("ServerVM", "Load older messages error: ${e.message}", e)
+            } finally {
+                _isLoadingOlderMessages.value = false
             }
         }
     }
