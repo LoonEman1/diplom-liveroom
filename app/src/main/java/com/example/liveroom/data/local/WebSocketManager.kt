@@ -56,12 +56,13 @@ class WebSocketManager @Inject constructor(
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 Log.d("WS", "✅ OPEN: ${response.code}")
                 isConnected = true
-                reconnectAttempts = 0 // ✅ Сброс счётчика
+                reconnectAttempts = 0
 
                 val connectFrame = buildString {
                     append("CONNECT\n")
                     append("accept-version:1.2\n")
                     append("heart-beat:10000,10000\n")
+                    append("Authorization:Bearer $token\n")
                     append("\n\u0000")
                 }
                 webSocket.send(connectFrame)
@@ -72,6 +73,11 @@ class WebSocketManager @Inject constructor(
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
+                if (text == "\n" || text.trim('\n', '\r', '\u0000').isEmpty()) {
+                    Log.v("WS", "💓 STOMP heartbeat received")
+                    return
+                }
+
                 Log.d("WS", "📨 $text")
                 _logs.tryEmit(text)
                 onMessageReceived?.invoke(text)
@@ -85,6 +91,7 @@ class WebSocketManager @Inject constructor(
                 Log.e("WS", "❌ Failure: ${t.message}")
                 Log.e("WS", "CODE: ${response?.code}")
                 isConnected = false
+                stopHeartbeat()
                 scheduleReconnect()
             }
 
@@ -118,16 +125,19 @@ class WebSocketManager @Inject constructor(
     }
 
     private fun startHeartbeat() {
+        stopHeartbeat()
+
         heartbeatRunnable = object : Runnable {
             override fun run() {
                 if (isConnected) {
-                    ws?.send("SEND\nheart-beat:true\n\n${'\u0000'}")
-                    Log.v("WS", "💓 Heartbeat sent")
+                    ws?.send("\n")
+                    Log.v("WS", "💓 STOMP heartbeat sent")
+                    reconnectHandler.postDelayed(this, 10000)
                 }
-                reconnectHandler.postDelayed(this, 25000) // 25 сек
             }
         }
-        reconnectHandler.postDelayed(heartbeatRunnable!!, 25000)
+
+        reconnectHandler.postDelayed(heartbeatRunnable!!, 10000)
     }
 
     private fun stopHeartbeat() {
