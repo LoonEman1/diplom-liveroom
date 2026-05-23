@@ -134,6 +134,10 @@ class ServerViewModel @Inject constructor(
 
     private var hasMoreMessages = true
 
+    private var currentMessagesTopic: String? = null
+    private var currentCallsTopic: String? = null
+    private var userCallsTopic: String? = null
+
 
     init {
         webRtcManager.signalingDelegate = this
@@ -871,22 +875,52 @@ class ServerViewModel @Inject constructor(
     }
 
 
-
-    fun setCurrentConversation(conversationId: Long, userId : Int) {
+    fun setCurrentConversation(conversationId: Long, userId: Int) {
         webSocketManager.onMessageReceived = null
+
+        val serverId = selectedServer.value?.id?.toLong() ?: return
+
+        currentMessagesTopic?.let { webSocketManager.unsubscribe(it) }
+        currentCallsTopic?.let { webSocketManager.unsubscribe(it) }
 
         _currentConversationId.value = conversationId
         loadMessages(conversationId)
-        val serverId = selectedServer.value?.id?.toLong() ?: return
-        webSocketManager.subscribe("/topic/servers/$serverId/conversations/$conversationId")
 
-        subscribeToCalls(serverId, conversationId, userId)
+        val messagesTopic = "/topic/servers/$serverId/conversations/$conversationId"
+        val callsTopic = "/topic/servers/$serverId/conversations/$conversationId/calls"
+        val userTopic = "/topic/users/$userId/calls"
 
+        webSocketManager.subscribe(messagesTopic)
+        webSocketManager.subscribe(callsTopic)
+
+        if (userCallsTopic != userTopic) {
+            userCallsTopic?.let { webSocketManager.unsubscribe(it) }
+            webSocketManager.subscribe(userTopic)
+            userCallsTopic = userTopic
+        }
+
+        currentMessagesTopic = messagesTopic
+        currentCallsTopic = callsTopic
 
         webSocketManager.onMessageReceived = { message ->
             Log.d("ServerVM", "✅ Get WS message: $message")
             onWebSocketMessage(message, userId)
         }
+    }
+
+    fun leaveCurrentConversation() {
+        currentMessagesTopic?.let { webSocketManager.unsubscribe(it) }
+        currentCallsTopic?.let { webSocketManager.unsubscribe(it) }
+
+        currentMessagesTopic = null
+        currentCallsTopic = null
+
+        _currentConversationId.value = null
+        _messages.value = emptyList()
+
+        webSocketManager.onMessageReceived = null
+
+        Log.d("ServerVM", "Left current conversation and unsubscribed chat topics")
     }
 
     fun editMessage(conversationId: Long, messageId: Long, newContent: String) {

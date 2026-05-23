@@ -42,6 +42,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.compositionLocalOf
@@ -126,6 +127,7 @@ fun ChatScreen(
 
     val isLoadingOlderMessages by serverViewModel.isLoadingOlderMessages.collectAsState()
     var initialScrollDone by remember(conversationId) { mutableStateOf(false) }
+    var previousMessagesSize by remember(conversationId) { mutableStateOf(0) }
 
 
     ConfirmationDialog(
@@ -138,6 +140,24 @@ fun ChatScreen(
         },
         onDismiss = { messageToDelete = null }
     )
+
+    LaunchedEffect(messages.size) {
+        if (messages.isEmpty()) {
+            previousMessagesSize = 0
+            return@LaunchedEffect
+        }
+
+        val oldLastIndex = previousMessagesSize - 1
+        val lastVisibleIndex = lazyListState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+
+        val wasNearBottom = previousMessagesSize == 0 || lastVisibleIndex >= oldLastIndex - 2
+
+        previousMessagesSize = messages.size
+
+        if (wasNearBottom) {
+            lazyListState.animateScrollToItem(messages.lastIndex)
+        }
+    }
 
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
@@ -172,8 +192,15 @@ fun ChatScreen(
             }
     }
 
+    DisposableEffect(conversationId) {
+        onDispose {
+            serverViewModel.leaveCurrentConversation()
+        }
+    }
+
 
     BackHandler {
+        serverViewModel.leaveCurrentConversation()
         onBackToServer()
     }
 
