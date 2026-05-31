@@ -33,7 +33,6 @@ class WebSocketManager @Inject constructor(
 
     private var isConnected = false
 
-    // 🔄 Реконнект
     private var reconnectAttempts = 0
     private val maxReconnects = 10
     private val reconnectHandler = Handler(Looper.getMainLooper())
@@ -46,7 +45,7 @@ class WebSocketManager @Inject constructor(
 
     fun connect() {
         val token = tokenManager.getAccessToken() ?: run {
-            Log.e("WS", "❌ Нет токена!")
+            Log.e("WS", "Нет токена!")
             return
         }
 
@@ -59,7 +58,7 @@ class WebSocketManager @Inject constructor(
 
         ws = client.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
-                Log.d("WS", "✅ OPEN: ${response.code}")
+                Log.d("WS", "OPEN: ${response.code}")
 
                 val connectFrame = buildString {
                     append("CONNECT\n")
@@ -75,12 +74,12 @@ class WebSocketManager @Inject constructor(
 
             override fun onMessage(webSocket: WebSocket, text: String) {
                 if (text == "\n" || text.trim('\n', '\r', '\u0000').isEmpty()) {
-                    Log.v("WS", "💓 STOMP heartbeat received")
+                    Log.v("WS", "STOMP heartbeat received")
                     return
                 }
 
                 if (text.startsWith("CONNECTED")) {
-                    Log.d("WS", "✅ STOMP CONNECTED")
+                    Log.d("WS", "STOMP CONNECTED")
                     isConnected = true
                     reconnectAttempts = 0
                     startHeartbeat()
@@ -89,7 +88,7 @@ class WebSocketManager @Inject constructor(
                 }
 
                 if (text.startsWith("ERROR")) {
-                    Log.e("WS", "❌ STOMP ERROR: $text")
+                    Log.e("WS", "STOMP ERROR: $text")
                     isConnected = false
                     stopHeartbeat()
                     topicToSubId.clear()
@@ -99,17 +98,17 @@ class WebSocketManager @Inject constructor(
                     return
                 }
 
-                Log.d("WS", "📨 $text")
+                Log.d("WS", "$text")
                 _logs.tryEmit(text)
                 onMessageReceived?.invoke(text)
             }
 
             override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
-                Log.d("WS", "📦 ${bytes.hex()}")
+                Log.d("WS", "${bytes.hex()}")
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-                Log.e("WS", "❌ Failure: ${t.message}")
+                Log.e("WS", "Failure: ${t.message}")
                 Log.e("WS", "CODE: ${response?.code}")
 
                 isConnected = false
@@ -120,7 +119,7 @@ class WebSocketManager @Inject constructor(
             }
 
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-                Log.d("WS", "🔌 CLOSED $code: $reason")
+                Log.d("WS", "CLOSED $code: $reason")
 
                 isConnected = false
                 stopHeartbeat()
@@ -131,21 +130,21 @@ class WebSocketManager @Inject constructor(
         })
     }
 
-    // 🔄 Автореконнект
+
     private fun scheduleReconnect() {
         if (reconnectAttempts >= maxReconnects) {
-            Log.e("WS", "❌ Max reconnects ($maxReconnects) reached")
+            Log.e("WS", "Max reconnects ($maxReconnects) reached")
             return
         }
 
         reconnectAttempts++
         val delayMs = (1000L * reconnectAttempts).coerceAtMost(30000L) // 1s, 2s... max 30s
 
-        Log.d("WS", "🔄 Reconnect #$reconnectAttempts in ${delayMs/1000}s...")
+        Log.d("WS", "Reconnect #$reconnectAttempts in ${delayMs/1000}s...")
 
         reconnectRunnable?.let { reconnectHandler.removeCallbacks(it) }
         reconnectRunnable = Runnable {
-            Log.d("WS", "🔄 Reconnecting...")
+            Log.d("WS", "Reconnecting...")
             connect()
         }
         reconnectHandler.postDelayed(reconnectRunnable!!, delayMs)
@@ -158,7 +157,7 @@ class WebSocketManager @Inject constructor(
             override fun run() {
                 if (isConnected) {
                     ws?.send("\n")
-                    Log.v("WS", "💓 STOMP heartbeat sent")
+                    Log.v("WS", "STOMP heartbeat sent")
                     reconnectHandler.postDelayed(this, 10000)
                 }
             }
@@ -177,19 +176,19 @@ class WebSocketManager @Inject constructor(
     fun requestActiveCalls(serverId: Int, conversationId: Int) {
         val topic = "/topic/servers/$serverId/conversations/$conversationId/calls/active"
         subscribe(topic)
-        Log.d("WS", "🔍 Подписка на активные звонки")
+        Log.d("WS", "Подписка на активные звонки")
     }
 
     fun subscribe(topic: String) {
         desiredTopics.add(topic)
 
         if (!isConnected) {
-            Log.w("WS", "⏳ STOMP not connected yet, queued SUB $topic")
+            Log.w("WS", "STOMP not connected yet, queued SUB $topic")
             return
         }
 
         if (topicToSubId.containsKey(topic)) {
-            Log.d("WS", "⚠️ Already subscribed: $topic")
+            Log.d("WS", "Already subscribed: $topic")
             return
         }
 
@@ -214,7 +213,7 @@ class WebSocketManager @Inject constructor(
         val subId = topicToSubId.remove(topic)
 
         if (!isConnected || subId == null) {
-            Log.d("WS", "📴 Remove queued/unconnected topic: $topic")
+            Log.d("WS", "Remove queued/unconnected topic: $topic")
             return
         }
 
@@ -225,7 +224,7 @@ class WebSocketManager @Inject constructor(
         }
 
         ws?.send(frame)
-        Log.d("WS", "📴 UNSUB $topic id=$subId")
+        Log.d("WS", "UNSUB $topic id=$subId")
     }
 
     private fun resubscribeAll() {
@@ -251,11 +250,11 @@ class WebSocketManager @Inject constructor(
         }.toString()
 
         ws?.send(frame)
-        Log.d("WS", "📤 SEND to $appPath")
+        Log.d("WS", "SEND to $appPath")
     }
 
     fun disconnect() {
-        Log.d("WS", "🔌 Manual disconnect")
+        Log.d("WS", "Manual disconnect")
         reconnectHandler.removeCallbacksAndMessages(null)
         stopHeartbeat()
         reconnectAttempts = 0
@@ -269,7 +268,7 @@ class WebSocketManager @Inject constructor(
     }
 
     fun manualReconnect() {
-        Log.d("WS", "🔄 Manual reconnect")
+        Log.d("WS", "Manual reconnect")
         disconnect()
         connect()
     }

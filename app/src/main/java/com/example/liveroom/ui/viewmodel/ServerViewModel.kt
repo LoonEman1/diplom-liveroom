@@ -815,7 +815,7 @@ class ServerViewModel @Inject constructor(
     fun onWebSocketMessage(text: String, userId: Int) {
         Log.d("ServerVM", "📨 RAW: $text")
 
-        // ✅ Извлеки только JSON payload после \n\n
+
         val jsonStart = text.indexOf('{')
         if (jsonStart == -1) {
             Log.w("ServerVM", "No JSON in message")
@@ -903,7 +903,7 @@ class ServerViewModel @Inject constructor(
         currentCallsTopic = callsTopic
 
         webSocketManager.onMessageReceived = { message ->
-            Log.d("ServerVM", "✅ Get WS message: $message")
+            Log.d("ServerVM", "Get WS message: $message")
             onWebSocketMessage(message, userId)
         }
     }
@@ -935,7 +935,7 @@ class ServerViewModel @Inject constructor(
                 }
 
                 result.onSuccess { updatedMessage ->
-                    // Мгновенно обновляем локальный список
+
                     _messages.update { currentMessages ->
                         currentMessages.map {
                             if (it.id == messageId) updatedMessage else it
@@ -1003,10 +1003,10 @@ class ServerViewModel @Inject constructor(
                 callStateManager.updateActiveCall(call)
 
                 if (call.startedByUserId == myUserId) {
-                    Log.d("CallDebug", "👑 I started the call → auto JOIN")
+                    Log.d("CallDebug", "I started the call → auto JOIN")
                     joinCall(call.callId)
                 } else {
-                    Log.d("CallDebug", "👀 Call started by ${call.startedByUserId}, waiting for manual join")
+                    Log.d("CallDebug", "Call started by ${call.startedByUserId}, waiting for manual join")
                 }
             }
             "call.participant.joined" -> {
@@ -1017,7 +1017,6 @@ class ServerViewModel @Inject constructor(
                 val activeCall = callStateManager.activeCall.value ?: return
 
                 if (event.userId != myUserId) {
-                    // Инициализирует только тот, у кого ID больше (или меньше, главное — консистентность)
                     if (myUserId < event.userId) {
                         Log.d("WebRTC", "I am the initiator, sending OFFER to ${event.userId}")
                         webRtcManager.createOffer(
@@ -1031,7 +1030,7 @@ class ServerViewModel @Inject constructor(
                 }
             }
             "call.ended" -> {
-                Log.d("CallDebug", "📴 CALL ENDED")
+                Log.d("CallDebug", "CALL ENDED")
                 val ended = parseCallEnded(payload as Map<*, *>)
                 callStateManager.endCall(ended.callId)
                 webRtcManager.closeCall(ended.callId)
@@ -1048,10 +1047,10 @@ class ServerViewModel @Inject constructor(
 
                 val remaining = callStateManager.getParticipantsCount(event.callId)
 
-                Log.d("CallDebug", "👤 User ${event.userId} left, remaining=$remaining")
+                Log.d("CallDebug", "User ${event.userId} left, remaining=$remaining")
 
                 if (remaining <= 1) {
-                    Log.d("CallDebug", "⚠️ Last participant → ending locally")
+                    Log.d("CallDebug", "Last participant → ending locally")
 
                     callStateManager.endCall(event.callId, "last participant left")
                     webRtcManager.closeCall(event.callId)
@@ -1100,12 +1099,12 @@ class ServerViewModel @Inject constructor(
             return
         }
 
-        Log.d("CallSignal", "🔄 Processing $signal from ${payload["fromUserId"]}")
+        Log.d("CallSignal", "Processing $signal from ${payload["fromUserId"]}")
 
         when (signal) {
             CallSignalType.START -> {
                 val callId = payload["callId"] as? String ?: return
-                Log.d("CallSignal", "✅ START confirmed: $callId")
+                Log.d("CallSignal", "START confirmed: $callId")
             }
 
             CallSignalType.INVITE -> {
@@ -1114,7 +1113,7 @@ class ServerViewModel @Inject constructor(
                 val serverId = (payload["serverId"] as? Number)?.toLong()
                 val conversationId = (payload["conversationId"] as? Number)?.toLong()
 
-                Log.d("CallSignal", "📞 Incoming INVITE from $fromUserId")
+                Log.d("CallSignal", "Incoming INVITE from $fromUserId")
 
                 callStateManager.showIncomingCallDialog(
                     IncomingCall(
@@ -1137,28 +1136,22 @@ class ServerViewModel @Inject constructor(
             CallSignalType.LEAVE -> {
                 val callId = payload["callId"] as? String ?: return
                 val userIdLeft = (payload["fromUserId"] as? Number)?.toLong() ?: return
-                val myUserId = // достань свой ID (из репозитория или константы)
+                val myUserId =
 
                     Log.d("CallSignal", "👋 User $userIdLeft LEFT $callId")
 
-                // 1. Обновляем UI (удаляем человека из списка)
                 callStateManager.participantLeft(callId, userIdLeft)
 
                 if (userIdLeft == myUserId.toLong()) {
-                    // Я ВЫШЕЛ: Закрываем всё
-                    Log.d("CallSignal", "🛑 I left the call. Cleaning up everything.")
+                    Log.d("CallSignal", "I left the call. Cleaning up everything.")
                     webRtcManager.closeCall(callId)
-                    // Хедер скроется, так как participantLeft занулит activeCall для меня
                 } else {
-                    // КТО-ТО ВЫШЕЛ: Закрываем поток только с ним
-                    Log.d("CallSignal", "✂️ Closing connection with user $userIdLeft")
+                    Log.d("CallSignal", "Closing connection with user $userIdLeft")
                     webRtcManager.closeConnectionForUser(userIdLeft)
 
-                    // Проверяем, остался ли кто-то еще кроме меня
                     val currentCall = callStateManager.activeCall.value
-                    // Если в списке остался 0 человек или только я один (зависит от того, хранишь ли ты себя в списке)
                     if (currentCall == null || currentCall.participants.isEmpty()) {
-                        Log.d("CallSignal", "📉 No one left. Ending call session.")
+                        Log.d("CallSignal", "No one left. Ending call session.")
                         webRtcManager.closeCall(callId)
                         callStateManager.endCall(callId)
                     }
@@ -1167,7 +1160,7 @@ class ServerViewModel @Inject constructor(
 
             CallSignalType.END -> {
                 val callId = payload["callId"] as? String ?: return
-                Log.d("CallSignal", "🔚 END $callId")
+                Log.d("CallSignal", "END $callId")
                 callStateManager.endCall(callId)
                 webRtcManager.closeCall(callId)
             }
@@ -1188,7 +1181,7 @@ class ServerViewModel @Inject constructor(
                         }
                     } ?: CallKind.AUDIO
 
-                Log.d("WebRTC", "📥 OFFER for $callId from $fromUserId")
+                Log.d("WebRTC", "OFFER for $callId from $fromUserId")
                 webRtcManager.onRemoteOffer(
                     callId = callId,
                     fromUserId = fromUserId,
@@ -1201,7 +1194,7 @@ class ServerViewModel @Inject constructor(
                 val callId = payload["callId"] as? String ?: return
                 val sdp = payload["sdp"] as? String ?: return
 
-                Log.d("WebRTC", "📥 ANSWER for $callId")
+                Log.d("WebRTC", "ANSWER for $callId")
                 webRtcManager.onRemoteAnswer(
                     callId = callId,
                     sdp = sdp
@@ -1225,7 +1218,7 @@ class ServerViewModel @Inject constructor(
                     return
                 }
 
-                Log.d("WebRTC", "🧊 ICE for $callId")
+                Log.d("WebRTC", "ICE for $callId")
                 webRtcManager.onRemoteIce(
                     callId = callId,
                     ice = ice
@@ -1234,13 +1227,13 @@ class ServerViewModel @Inject constructor(
 
             CallSignalType.BUSY -> {
                 val callId = payload["callId"] as? String
-                Log.w("CallSignal", "❌ BUSY for callId=$callId")
+                Log.w("CallSignal", "BUSY for callId=$callId")
             }
 
             CallSignalType.ERROR -> {
                 val error = payload["error"] as? String
                 val callId = payload["callId"] as? String
-                Log.e("CallSignal", "💥 ERROR for callId=$callId : $error")
+                Log.e("CallSignal", "ERROR for callId=$callId : $error")
             }
         }
     }

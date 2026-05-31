@@ -29,7 +29,6 @@ class WebRtcManager @Inject constructor(
     private val eglBase: EglBase = EglBase.create()
     private val peerConnectionFactory: PeerConnectionFactory
 
-    // Делегат для отправки сигналов через ServerViewModel
     var signalingDelegate: SignalingDelegate? = null
 
     private val peerConnections = mutableMapOf<String, PeerConnection>()
@@ -98,9 +97,9 @@ class WebRtcManager @Inject constructor(
 
         val observer = object : PeerConnection.Observer {
             override fun onIceCandidate(candidate: IceCandidate) {
-                Log.d("WebRTC", "❄️ Local ICE candidate generated")
+                Log.d("WebRTC", "Local ICE candidate generated")
 
-                Log.d("WebRTC", "❄️ ICE: ${candidate.sdp}")
+                Log.d("WebRTC", "ICE: ${candidate.sdp}")
                 signalingDelegate?.sendIceCandidate(
                     callId = callId,
                     toUserId = remoteUserId,
@@ -113,15 +112,15 @@ class WebRtcManager @Inject constructor(
             }
 
             override fun onTrack(transceiver: org.webrtc.RtpTransceiver?) {
-                Log.d("WebRTC", "🎧 Remote track received")
+                Log.d("WebRTC", "Remote track received")
             }
 
             override fun onConnectionChange(newState: PeerConnection.PeerConnectionState) {
-                Log.d("WebRTC", "🔄 PC State: $newState")
+                Log.d("WebRTC", "PC State: $newState")
             }
 
             override fun onIceConnectionChange(newState: PeerConnection.IceConnectionState) {
-                Log.d("WebRTC", "🧊 ICE State: $newState")
+                Log.d("WebRTC", "ICE State: $newState")
             }
 
             override fun onSignalingChange(p0: PeerConnection.SignalingState?) {}
@@ -160,7 +159,7 @@ class WebRtcManager @Inject constructor(
             override fun onCreateSuccess(desc: SessionDescription) {
                 pc.setLocalDescription(object : SdpObserver {
                     override fun onSetSuccess() {
-                        Log.d("WebRTC", "📤 Sending OFFER")
+                        Log.d("WebRTC", "Sending OFFER")
                         signalingDelegate?.sendOffer(callId, remoteUserId, desc.description)
                     }
                     override fun onSetFailure(p0: String?) {}
@@ -180,13 +179,12 @@ class WebRtcManager @Inject constructor(
 
         pc.setRemoteDescription(object : SdpObserver {
             override fun onSetSuccess() {
-                Log.d("WebRTC", "📥 Remote OFFER set")
-                // ✅ ВАЖНО: Сначала проливаем ICE, потом создаем ответ
+                Log.d("WebRTC", "Remote OFFER set")
                 drainIceCandidates(callId, pc)
                 createAnswer(callId, fromUserId, kind)
             }
             override fun onSetFailure(error: String?) {
-                Log.e("WebRTC", "❌ setRemoteDescription FAILED: $error")  // ← ДОБАВЬ!
+                Log.e("WebRTC", "setRemoteDescription FAILED: $error")
             }
             override fun onCreateSuccess(p0: SessionDescription?) {}
             override fun onCreateFailure(p0: String?) {}
@@ -204,7 +202,7 @@ class WebRtcManager @Inject constructor(
             override fun onCreateSuccess(desc: SessionDescription) {
                 pc.setLocalDescription(object : SdpObserver {
                     override fun onSetSuccess() {
-                        Log.d("WebRTC", "📤 Sending ANSWER")
+                        Log.d("WebRTC", "Sending ANSWER")
                         signalingDelegate?.sendAnswer(callId, remoteUserId, desc.description)
                     }
                     override fun onSetFailure(p0: String?) {}
@@ -224,8 +222,7 @@ class WebRtcManager @Inject constructor(
 
         pc.setRemoteDescription(object : SdpObserver {
             override fun onSetSuccess() {
-                Log.d("WebRTC", "✅ Remote ANSWER applied")
-                // ✅ ВАЖНО: Проливаем накопленные кандидаты
+                Log.d("WebRTC", "Remote ANSWER applied")
                 drainIceCandidates(callId, pc)
             }
             override fun onSetFailure(p0: String?) {}
@@ -238,14 +235,12 @@ class WebRtcManager @Inject constructor(
         val pc = peerConnections[callId]
         val candidate = IceCandidate(ice.sdpMid, ice.sdpMLineIndex, ice.candidate)
 
-        // Если PC еще не создан или мы еще не установили RemoteDescription,
-        // складываем кандидатов в "копилку"
         if (pc == null || pc.remoteDescription == null) {
-            Log.d("WebRTC", "❄️ ICE queued: PC or RemoteDesc not ready for $callId")
+            Log.d("WebRTC", "ICE queued: PC or RemoteDesc not ready for $callId")
             pendingIceCandidates.getOrPut(callId) { mutableListOf() }.add(candidate)
         } else {
             pc.addIceCandidate(candidate)
-            Log.d("WebRTC", "❄️ ICE added directly")
+            Log.d("WebRTC", "ICE added directly")
         }
     }
 
@@ -253,12 +248,12 @@ class WebRtcManager @Inject constructor(
         val candidates = pendingIceCandidates.remove(callId)
         candidates?.forEach {
             pc.addIceCandidate(it)
-            Log.d("WebRTC", "❄️ Drained ICE candidate for $callId")
+            Log.d("WebRTC", "Drained ICE candidate for $callId")
         }
     }
 
     fun closeCall(callId: String) {
-        Log.d("WebRTC", "🛑 Closing call: $callId")
+        Log.d("WebRTC", "Closing call: $callId")
 
         val pc = peerConnections.remove(callId)
         pc?.close()
@@ -271,7 +266,7 @@ class WebRtcManager @Inject constructor(
     }
 
     private fun stopLocalAudio() {
-        Log.d("WebRTC", "🎤 Stopping local audio track")
+        Log.d("WebRTC", "Stopping local audio track")
         localAudioTrack?.setEnabled(false)
         localAudioTrack?.dispose()
         localAudioTrack = null
@@ -284,7 +279,7 @@ class WebRtcManager @Inject constructor(
         val callIdEntry = remoteUserIds.entries.find { it.value == userId }
         val callId = callIdEntry?.key ?: return
 
-        Log.d("WebRTC", "✂️ Closing connection for user: $userId in call $callId")
+        Log.d("WebRTC", "Closing connection for user: $userId in call $callId")
 
         val pc = peerConnections.remove(callId)
         pc?.close()
