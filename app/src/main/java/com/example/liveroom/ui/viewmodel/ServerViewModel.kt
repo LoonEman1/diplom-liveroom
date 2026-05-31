@@ -1136,9 +1136,8 @@ class ServerViewModel @Inject constructor(
             CallSignalType.LEAVE -> {
                 val callId = payload["callId"] as? String ?: return
                 val userIdLeft = (payload["fromUserId"] as? Number)?.toLong() ?: return
-                val myUserId =
 
-                    Log.d("CallSignal", "👋 User $userIdLeft LEFT $callId")
+                Log.d("CallSignal", "👋 User $userIdLeft LEFT $callId")
 
                 callStateManager.participantLeft(callId, userIdLeft)
 
